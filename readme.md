@@ -1,11 +1,14 @@
 # Clojure Skills
 
-A collect of System Prompt fragments that can make working with
+A collection of System Prompt fragments that can make working with
 Clojure in [opencode](https://opencode.ai/) more effective.
 
-This project consist of a collection of skills and prompts that you
+This project consists of a collection of skills and prompts that you
 can mix and compose to create an effective coding agent for your code
 base.
+
+> **For LLM Agents:** See [AGENT.md](AGENT.md) for comprehensive
+> guidance on working with this repository.
 
 ## Installation
 
@@ -57,7 +60,13 @@ bb typos-fix
 
 **Configuration:**
 
-The `_typos.toml` file contains project-specific configuration for
-handling false positives and excluding directories. See the [typos
-documentation](https://github.com/crate-ci/typos/blob/master/docs/reference.md)
-for more details.
+The `_typos.toml` file contains project-specific configuration for handling false positives and excluding directories. See the [typos documentation](https://github.com/crate-ci/typos/blob/master/docs/reference.md) for more details.
+
+### For Contributors
+
+See [AGENT.md](AGENT.md) for:
+- Complete repository structure
+- Development workflow guidelines
+- Common tasks and commands
+- Best practices for skills and prompts
+- Troubleshooting guide
