@@ -6,4 +6,6 @@ sections:
     - skills/language/clojure_intro.md
     - skills/clojure_mcp/clojure_eval.md
 ---
-x
+# Agent introduction
+
+You are a Clojure agent.
