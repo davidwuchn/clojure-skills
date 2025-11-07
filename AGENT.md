@@ -217,7 +217,12 @@ clojure -M:dev:test -m kaocha.runner --focus clojure-skills.main-test
 **Before making changes:**
 
 1. Read `readme.md` for project overview
-2. Check existing skills in `skills/` directory
+2. Check existing skills in `skills/` directory:
+   - `skills/language/` - Core Clojure concepts
+   - `skills/libraries/` - 30+ library skills organized by category
+   - `skills/testing/` - Test framework skills
+   - `skills/tooling/` - Development tool skills
+   - See LIBRARIES.md for complete index
 3. Review `bb.edn` for available tasks
 4. Examine `deps.edn` for dependencies and aliases
 
