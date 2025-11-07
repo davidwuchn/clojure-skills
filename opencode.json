@@ -1,0 +1,51 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "theme": "tokyonight",
+  "model": "claude-sonnet-4-5",
+  "autoupdate": true,
+
+
+  "agent": {
+    "clojure_build": {
+      "mode": "primary",
+      "model": "anthropic/claude-haiku-4-5",
+//      "prompt": "{file:./prompts/clojure_build.md}",
+      "tools": {
+        "write": false,
+        "edit": false,
+        "read": false,
+        "bash": true
+      },
+      "permission": {
+        "write": "ask",
+        "clojure-mcp_file_write": "ask",
+        "clojure-mcp_file_edit": "ask",
+        "clojure-mcp_clojure_edit": "ask",
+        "clojure-mcp_clojure_edit_replace_sexp": "ask"
+      }
+    }
+  },
+
+  "mcp": {
+    "clojure-mcp": {
+      "type": "local",
+      "enabled": true,
+      "command": ["clojure", "-X:mcp", ":port", "7889"]
+    }
+  },
+  "lsp": {
+    "clojure-lsp": {
+      "command": ["/opt/homebrew/bin/clojure-lsp"],
+      "extensions": [".clj", ".cljs", ".cljc", ".edn", ".bb"],
+      "env": {
+        "CLOJURE_LSP_LOG_LEVEL": "info"
+      },
+      "initialization": {
+        "initializationOptions": {
+          "project-root-uri-as-project-root?": true,
+          "text-document-sync-kind": 2
+        }
+      }
+    }
+  }
+}
