@@ -5,7 +5,8 @@ description: An introduction to the Clojure Language.
 
 # Clojure Introduction
 
-Clojure is a functional Lisp for the JVM combining immutable data structures, first-class functions, and practical concurrency support.
+Clojure is a functional Lisp for the JVM combining immutable data
+structures, first-class functions, and practical concurrency support.
 
 ## Core Language Features
 
@@ -63,7 +64,8 @@ Clojure programs are data structures. This enables:
 
 ## Java Interop
 
-Call Java directly: `(ClassName/staticMethod)` or `(.method object)`. Access Java libraries seamlessly.
+Call Java directly: `(ClassName/staticMethod)` or `(.method
+object)`. Access Java libraries seamlessly.
 
 ## Why Clojure
 
