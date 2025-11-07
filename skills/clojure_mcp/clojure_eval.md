@@ -161,7 +161,7 @@ After modifying files with `clojure_edit`, always reload and test:
 
 ## Best Practices
 
-**✅ Do:**
+**Do:**
 - Test small expressions incrementally
 - Validate each step before adding complexity
 - Use helper functions to explore before coding
@@ -169,7 +169,7 @@ After modifying files with `clojure_edit`, always reload and test:
 - Test edge cases (nil, empty collections, invalid inputs)
 - Keep experiments focused and small
 
-**❌ Don't:**
+**Don't:**
 - Skip validation - always test before committing to files
 - Build complex logic all at once without testing steps
 - Assume cached definitions match file contents - reload first

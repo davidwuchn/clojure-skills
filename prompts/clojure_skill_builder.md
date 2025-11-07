@@ -128,7 +128,7 @@ For complex examples, see [EXAMPLES.md](EXAMPLES.md)
 - **Cannot contain**: XML tags
 - **Critical requirement**: Include BOTH what it does AND when to use it
 
-**✅ Good description** (includes WHAT + WHEN):
+**Good description** (includes WHAT + WHEN):
 ```yaml
 description: |
   Validate data structures and schemas using Malli. Use when validating
@@ -136,7 +136,7 @@ description: |
   or when the user mentions schemas, validation, or data contracts.
 ```
 
-**❌ Poor description** (only says WHAT):
+**Poor description** (only says WHAT):
 ```yaml
 description: Data validation library for Clojure
 ```
@@ -192,10 +192,10 @@ Choose the right level for each content type:
 
 **Example**: Email validation
 ```clojure
-; ❌ Don't put complex validation logic in SKILL.md
+; Don't put complex validation logic in SKILL.md
 ; (Forces agents to regenerate the logic each time)
 
-; ✅ Do create scripts/validate-email.clj
+; Do create scripts/validate-email.clj
 (ns validate-email)
 
 (defn valid-email? [email]
@@ -246,10 +246,10 @@ Structure your main Skill content like this:
 ## Best Practices
 [What to do and what to avoid]
 
-**✅ Do**:
+**Do**:
 - [Good practice with brief explanation]
 
-**❌ Don't**:
+**Don't**:
 - [Anti-pattern with brief explanation]
 
 ## Common Issues
@@ -264,7 +264,7 @@ For complex real-world examples, see [EXAMPLES.md](EXAMPLES.md)
 
 Your Skill's `description` is the primary discovery mechanism. Make it specific and trigger-rich:
 
-**✅ Good triggers**:
+**Good triggers**:
 ```yaml
 # Triggers on: "HTTP server", "web server", "API endpoint", "REST"
 description: |
@@ -281,7 +281,7 @@ description: |
   schemas, data integrity, or type checking.
 ```
 
-**❌ Poor triggers**:
+**Poor triggers**:
 ```yaml
 # Too vague - when would this trigger?
 description: A Clojure HTTP library
@@ -424,13 +424,13 @@ Schemas are Clojure data structures, not special objects. This makes them compos
 
 ## Best Practices
 
-**✅ Do**:
+**Do**:
 - Define schemas as constants for reuse
 - Use descriptive keys in maps
 - Provide human-readable error messages
 - Test schemas with valid and invalid data
 
-**❌ Don't**:
+**Don't**:
 - Recreate schemas inline (define once, reuse)
 - Make schemas too strict (allow flexibility)
 - Ignore validation errors (always check return values)

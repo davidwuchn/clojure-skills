@@ -3,35 +3,32 @@
 A collection of System Prompt fragments that can make working with
 Clojure in [opencode](https://opencode.ai/) more effective.
 
-This project consists of a collection of skills and prompts that you
+This project consists of a collection of Skills and prompts that you
 can mix and compose to create an effective coding agent for your code
 base.
 
 > **For LLM Agents:** See [AGENT.md](AGENT.md) for comprehensive
 > guidance on working with this repository.
 
-## Installation
 
-```shell
-brew bundle
-```
+Skills follow Anthropic Skills API and should be compatible.
+
+This tool also allows you to combine these skills into directed
+prompts that you can using in coding agents like opencode.
+
+The goal is to allow us to capture to best work with Clojure from
+within LLM agents in a vendor neutral format.
 
 ## Skills
 
-These skills are broken into different sub sections
+These skills are broken into different subsections,
 
-- Language
-  - clojure_intro.md
-  - repl_workflow.md
-  - immutable_data.md
-
-- Clojure MCP
-  - clojure_eval.md
-
-- HTTP Server
-
-    - http_kit.md
-
+- clojure-mcp
+- http-server
+- libraries
+- language
+- testing
+- tooling
 
 ## Prompts
 
@@ -40,9 +37,26 @@ use. See prompts/clojure_build.md for an example.
 
 ## Development
 
+### Installation
+
+#### MacOS
+
+On macos you can install the dependencies for this project with brew.
+
+```shell
+brew bundle
+```
+
+### DNF/RPM system
+
+```shell
+sudo dnf install just pandoc jq
+```
+
 ### Spell Checking
 
-This project uses [typos](https://github.com/crate-ci/typos) for spell checking source code.
+This project uses [typos](https://github.com/crate-ci/typos) for spell
+checking source code.
 
 **Check for typos:**
 ```shell
@@ -60,7 +74,10 @@ bb typos-fix
 
 **Configuration:**
 
-The `_typos.toml` file contains project-specific configuration for handling false positives and excluding directories. See the [typos documentation](https://github.com/crate-ci/typos/blob/master/docs/reference.md) for more details.
+The `_typos.toml` file contains project-specific configuration for
+handling false positives and excluding directories. See the [typos
+documentation](https://github.com/crate-ci/typos/blob/master/docs/reference.md)
+for more details.
 
 ### For Contributors
 
