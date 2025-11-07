@@ -1,13 +1,3 @@
----
-title: Clojure Skill Builder
-author: Ivan Willig
-date: 2025-11-06
-sections:
-    - skills/language/clojure_intro.md
-    - skills/language/clojure_repl.md
-    - skills/clojure_mcp/clojure_eval.md
----
-
 # Clojure Skill Builder
 
 You are an LLM Agent designed to help write effective Agent Skills for

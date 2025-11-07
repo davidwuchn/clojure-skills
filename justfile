@@ -11,36 +11,34 @@ build-all:
 build name:
     #!/bin/bash
     set -e
-    INPUT="prompts/{{name}}.md"
+    
+    PROMPT="prompts/{{name}}.md"
+    METADATA="prompt_templates/{{name}}.yaml"
     OUTPUT="_build/{{name}}.md"
-    TEMPLATE="prompt_templates/metadata.plain"
-
-    if [ ! -f "$INPUT" ]; then
-        echo "Error: Input file not found: $INPUT"
+    TEMPLATE="prompt_templates/combine.md"
+    
+    if [ ! -f "$PROMPT" ]; then
+        echo "Error: Prompt file not found: $PROMPT"
         exit 1
     fi
-
+    
+    if [ ! -f "$METADATA" ]; then
+        echo "Error: Metadata file not found: $METADATA"
+        exit 1
+    fi
+    
     echo "Building $OUTPUT..."
     mkdir -p _build
-
-    # Copy main file preserving frontmatter
-    cp "$INPUT" "$OUTPUT"
-
-    # Extract sections from metadata and append each
-    sections=$(pandoc "$INPUT" --template="$TEMPLATE" | jq -r '.sections[]? // empty')
-
-    for section in $sections; do
-        if [ -f "$section" ]; then
-            echo "" >> "$OUTPUT"
-            echo "# Including: $section" >> "$OUTPUT"
-            echo "" >> "$OUTPUT"
-            # Use pandoc to strip frontmatter and output markdown
-            pandoc "$section" -f markdown -t markdown >> "$OUTPUT"
-        else
-            echo "Warning: Section file not found: $section"
-        fi
-    done
-
+    
+    # Extract skills from metadata and create the list of input files
+    SKILLS=$(yq -r '.skills[]' "$METADATA")
+    
+    # Build pandoc command with prompt + all skill files
+    pandoc "$PROMPT" $SKILLS \
+        --metadata-file="$METADATA" \
+        --template="$TEMPLATE" \
+        -o "$OUTPUT"
+    
     echo "Build successful: $OUTPUT"
 
 # Check for typos
@@ -53,10 +51,11 @@ typos-fix:
     @echo "Fixing typos..."
     @typos --write-changes
 
-# Clean build artifacts
+# Clean all build artifacts
 clean:
-    @echo "Cleaning _build..."
-    @rm -rf _build/*.md
+    @echo "Cleaning _build directory..."
+    @rm -rf _build/*
+    @echo "Clean complete"
 
 # Show available recipes
 help:
