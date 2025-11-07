@@ -6,22 +6,19 @@
 
 
   "agent": {
-    "clojure_build": {
+    "clojure_skill_builder": {
       "mode": "primary",
       "model": "anthropic/claude-sonnet-4-5",
-      "prompt": "{file:./_build/clojure_build.md}",
+      "prompt": "{file:./_build/clojure_skill_builder.md}",
       "tools": {
-        "write": false,
-        "edit": false,
+        "write": true,
+        "edit": true,
         "read": false,
         "bash": true
       },
       "permission": {
         "write": "ask",
-        "clojure-mcp_file_write": "ask",
-        "clojure-mcp_file_edit": "ask",
-        "clojure-mcp_clojure_edit": "ask",
-        "clojure-mcp_clojure_edit_replace_sexp": "ask"
+        "edit": "ask"
       }
     }
   },

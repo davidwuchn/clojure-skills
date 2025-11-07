@@ -2,12 +2,12 @@
 
 .PHONY: typos typos-fix clean help
 
+# Helper: Extract metadata from prompt files using Pandoc + jq
+# Usage: pandoc <file> --template=prompt_templates/metadata.plain | jq '.sections[]?'
+# This uses Pandoc's $meta-json$ template variable to extract YAML frontmatter
+
 _build/%.md: prompts/%.md
-	pandoc \
-	--metadata-file prompts/$*.md \
-	-f markdown -t markdown \
-	$(shell echo prompts/$*.md && yq '.sections[]' prompts/$*.md) \
-	-o $@
+	pandoc prompts/$*.md -o $@
 	@echo "build successful: $@"
 
 # Check for typos in the codebase
