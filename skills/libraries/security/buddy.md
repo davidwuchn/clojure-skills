@@ -1,11 +1,11 @@
 ---
 name: buddy-security
 description: |
-  Security and cryptography library for Clojure. Use when hashing passwords, creating/verifying 
-  JWTs, implementing authentication, signing/encrypting data, generating cryptographic hashes, 
-  or when the user mentions password hashing, JWT, JWS, JWE, bcrypt, scrypt, pbkdf2, digital 
-  signatures, message authentication codes (MAC), HMAC, SHA, encryption, or security. Buddy 
-  provides password hashers, JSON Web Tokens, cryptographic hash functions, message signing, 
+  Security and cryptography library for Clojure. Use when hashing passwords, creating/verifying
+  JWTs, implementing authentication, signing/encrypting data, generating cryptographic hashes,
+  or when the user mentions password hashing, JWT, JWS, JWE, bcrypt, scrypt, pbkdf2, digital
+  signatures, message authentication codes (MAC), HMAC, SHA, encryption, or security. Buddy
+  provides password hashers, JSON Web Tokens, cryptographic hash functions, message signing,
   and authentication/authorization for Ring applications.
 ---
 
@@ -13,7 +13,9 @@ description: |
 
 ## Quick Start
 
-Buddy is a comprehensive security library providing password hashing, JWT support, cryptographic operations, and authentication for Clojure applications.
+Buddy is a comprehensive security library providing password hashing,
+JWT support, cryptographic operations, and authentication for Clojure
+applications.
 
 ```clojure
 ;; Password Hashing
@@ -290,7 +292,7 @@ Verify message authenticity and integrity:
 
 ;; Verify message MAC
 (defn verify-message [signed secret]
-  (let [expected-mac (mac/hash (:message signed) 
+  (let [expected-mac (mac/hash (:message signed)
                                {:key secret :alg :hmac+sha256})
         actual-mac (codecs/hex->bytes (:signature signed))]
     (codecs/bytes= expected-mac actual-mac)))
@@ -321,7 +323,7 @@ Use standard JWT claims for automatic validation:
    :exp (+ (quot (System/currentTimeMillis) 1000) 3600)  ; Expires (1 hour)
    :nbf (quot (System/currentTimeMillis) 1000)  ; Not before
    :jti (str (java.util.UUID/randomUUID))  ; JWT ID (unique)
-   
+
    ;; Custom claims
    :user "alice"
    :roles ["admin" "user"]})
@@ -364,7 +366,7 @@ Best practices for handling tokens:
 (defn store-token-secure [user-id token]
   ;; DON'T store tokens in localStorage (XSS vulnerable)
   ;; DO store in httpOnly cookies or secure session storage
-  {:set-cookie (str "auth-token=" token 
+  {:set-cookie (str "auth-token=" token
                     "; HttpOnly"        ; Prevent JavaScript access
                     "; Secure"          ; HTTPS only
                     "; SameSite=Strict" ; CSRF protection
@@ -372,7 +374,7 @@ Best practices for handling tokens:
 
 ;; Refresh token pattern
 (defn create-token-pair [user]
-  (let [access-token (jwt/sign {:user (:id user) 
+  (let [access-token (jwt/sign {:user (:id user)
                                 :exp (+ (System/currentTimeMillis) 900000)}  ; 15 min
                                "access-secret")
         refresh-token (jwt/sign {:user (:id user)
@@ -428,7 +430,7 @@ Best practices for handling tokens:
 
 ```clojure
 ;; Good: JWT with expiration
-(jwt/sign {:user "alice" 
+(jwt/sign {:user "alice"
            :exp (+ (System/currentTimeMillis) 3600000)}
           "secret")
 
