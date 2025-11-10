@@ -1,6 +1,10 @@
 ---
 name: honeysql_sql_query_builder
-description: Data-driven SQL query builder for Clojure.
+description: |
+  Build SQL queries using Clojure data structures with HoneySQL. Use when building 
+  dynamic SQL, composing queries programmatically, parameterized queries, SQL generation, 
+  or when the user mentions SQL builder, HoneySQL, query composition, SQL DSL, or 
+  data-driven queries.
 ---
 
 # HoneySQL

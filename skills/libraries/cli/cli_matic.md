@@ -1,6 +1,10 @@
 ---
 name: cli_matic_command_line_interface
-description: CLI argument parsing and command structure library.
+description: |
+  Build command-line interfaces with data-driven command definitions. Use when 
+  building CLI tools, parsing command-line arguments, multi-command applications, 
+  subcommands, or when the user mentions CLI, command-line, args parsing, terminal 
+  tools, command structure, or CLI applications.
 ---
 
 # cli-matic

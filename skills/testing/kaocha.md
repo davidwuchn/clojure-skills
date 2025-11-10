@@ -1,6 +1,10 @@
 ---
 name: kaocha_test_runner
-description: Full-featured test runner for Clojure projects.
+description: |
+  Full-featured test runner for Clojure with watch mode, coverage, and plugins. 
+  Use when running tests, test-driven development (TDD), CI/CD pipelines, coverage 
+  reporting, or when the user mentions testing, test runner, kaocha, watch mode, 
+  continuous testing, or test automation.
 ---
 
 # Kaocha

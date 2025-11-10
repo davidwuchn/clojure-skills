@@ -1,6 +1,10 @@
 ---
 name: clojure_introduction
-description: An introduction to the Clojure Language.
+description: |
+  Introduction to Clojure fundamentals, immutability, and functional programming concepts. 
+  Use when learning Clojure basics, understanding core language features, data structures, 
+  functional programming, or when the user asks about Clojure introduction, getting started, 
+  language overview, immutability, REPL-driven development, or JVM functional programming.
 ---
 
 # Clojure Introduction

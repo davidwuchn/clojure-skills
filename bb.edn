@@ -166,4 +166,74 @@
              (run 'fmt-check)
              (run 'lint)
              (run 'typos)
-             (run 'test))}}}
+             (run 'test))}
+
+  list-skills
+  {:doc "List all skills with their paths and metadata"
+   :task (let [skills-dir "skills"
+               skill-files (sort (map str (fs/glob skills-dir "**/*.md")))
+
+               ;; Function to extract YAML frontmatter
+               extract-frontmatter (fn [file-path]
+                                     (let [content (slurp file-path)
+                                           lines (str/split-lines content)]
+                                       (when (= "---" (first lines))
+                                         (let [find-end (fn [lines]
+                                                          (first (keep-indexed
+                                                                  (fn [idx line]
+                                                                    (when (and (> idx 0)
+                                                                               (= "---" line))
+                                                                      idx))
+                                                                  lines)))
+                                               end-idx (find-end lines)]
+                                           (when end-idx
+                                             (yaml/parse-string
+                                              (str/join "\n" (take (dec end-idx) (drop 1 lines)))))))))
+
+               ;; Parse all skills
+               skills (for [file-path skill-files]
+                        (let [metadata (extract-frontmatter file-path)
+                              relative-path (str/replace file-path
+                                                         (str (fs/file skills-dir) "/")
+                                                         "")]
+                          {:path file-path
+                           :relative-path relative-path
+                           :name (get metadata :name "unknown")
+                           :description (get metadata :description "")}))
+
+               ;; Group by category
+               get-category (fn [skill] (first (str/split (:relative-path skill) (re-pattern "/"))))
+               by-category (group-by get-category skills)]
+
+           (bling/callout
+            {:type :info}
+            (bling/bling [:bold "Available Skills"]))
+
+           (println)
+           (println (bling/bling [:bold "Total Skills:"] (str (count skills))))
+           (println)
+
+           ;; Print organized by category
+           (doseq [[category skill-list] (sort-by key by-category)]
+             (println (bling/bling [:bold :cyan (str "## " (str/capitalize category))]))
+             (doseq [skill (sort-by :name skill-list)]
+               (println)
+               (println (bling/bling [:bold "  Name:"] (:name skill)))
+               (println (bling/bling "  Path:" (:path skill)))
+               (when (seq (:description skill))
+                 (let [desc (if (string? (:description skill))
+                              (:description skill)
+                              (str (:description skill)))
+                       short-desc (if (> (count desc) 100)
+                                    (str (subs desc 0 97) "...")
+                                    desc)]
+                   (println (bling/bling "  Desc:" short-desc)))))
+             (println))
+
+           ;; Also print as YAML-friendly list for prompt templates
+           (println)
+           (println (bling/bling [:bold :yellow "## For prompt_templates (copy this to .yaml):"]))
+           (println)
+           (println "skills:")
+           (doseq [skill (sort-by :path skills)]
+             (println (str "  - " (:path skill)))))}}}

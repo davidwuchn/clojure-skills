@@ -1,6 +1,10 @@
 ---
 name: next_jdbc_database_access
-description: JDBC abstraction layer for SQL database access.
+description: |
+  Modern JDBC wrapper for SQL database access in Clojure. Use when querying databases, 
+  executing SQL, database transactions, connection pooling, or when the user mentions 
+  JDBC, database access, SQL queries, next.jdbc, relational databases, or database 
+  connections.
 ---
 
 # next.jdbc

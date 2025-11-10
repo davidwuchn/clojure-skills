@@ -561,7 +561,61 @@ Use these tools to understand Clojure features deeply before documenting:
 - **`clj-mcp.repl-tools/doc-symbol`**: Get function documentation
 - **`clj-mcp.repl-tools/source-symbol`**: View function source
 - **`clj-mcp.repl-tools/find-symbols`**: Search for symbols by pattern
+- **`clojure.repl.deps/add-lib`**: Load libraries dynamically into the REPL
 - **File tools**: Write and edit Skill files
+
+### Loading Libraries Dynamically
+
+When creating Skills for libraries not already on the classpath, you can load them dynamically using `clojure.repl.deps/add-lib`:
+
+```clojure
+;; Load a library at the REPL
+(require '[clojure.repl.deps :refer [add-lib add-libs]])
+
+;; Add a single library
+(add-lib 'org.clojure/data.csv {:mvn/version "1.0.1"})
+
+;; Now require and use it
+(require '[clojure.data.csv :as csv])
+(csv/write-csv *out* [["a" "b" "c"]])
+
+;; Add multiple libraries at once (more efficient)
+(add-libs '{org.clojure/data.json {:mvn/version "2.5.0"}
+            metosin/malli {:mvn/version "0.16.0"}})
+```
+
+**When to use `add-lib`:**
+- Testing libraries before creating Skills
+- Exploring API surfaces and function signatures
+- Validating code examples with actual library behavior
+- Checking library compatibility with current Clojure version
+
+**Important notes:**
+- Libraries are added to the REPL session, not permanently to project
+- Once added, libraries persist for the REPL session
+- You still need to `require` the namespace after loading
+- Requires Clojure 1.12+ and a valid parent DynamicClassLoader
+
+**Example workflow for creating a Skill:**
+
+```clojure
+;; 1. Load the library
+(require '[clojure.repl.deps :refer [add-lib]])
+(add-lib 'buddy/buddy-core {:mvn/version "1.11.0"})
+
+;; 2. Explore what's available
+(require '[buddy.core.hash :as hash])
+(clj-mcp.repl-tools/list-vars 'buddy.core.hash)
+
+;; 3. Test examples
+(hash/sha256 "hello world")
+;; => #object["[B" 0x1234abcd "[B@1234abcd"]
+
+;; 4. Document the behavior in your Skill
+;; Now you know exactly how it works!
+```
+
+This allows you to create accurate, tested Skills for any Clojure library without needing to add it to the project dependencies.
 
 ## Summary: What Makes an Effective Clojure Skill
 

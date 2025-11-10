@@ -1,6 +1,10 @@
 ---
 name: clj_kondo_linter
-description: Static analysis and linting tool for Clojure code.
+description: |
+  Fast static analysis and linting for Clojure code. Use when linting code, catching 
+  errors early, static analysis, code quality checks, pre-commit hooks, or when the 
+  user mentions linting, clj-kondo, code quality, style checking, error detection, 
+  or static analysis.
 ---
 
 # clj-kondo
