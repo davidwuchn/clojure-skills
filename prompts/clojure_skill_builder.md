@@ -549,6 +549,67 @@ This organization means:
 - [ ] Performance considerations documented
 - [ ] Common issues and solutions included
 
+## Building and Testing Skills
+
+This repository uses **Babashka (bb)** for task automation.
+
+### Build Commands
+
+```bash
+# List all available tasks
+bb tasks
+
+# Build a specific prompt
+bb build clojure_skill_builder
+
+# Build all prompts
+bb build-all
+
+# Build and compress (10x compression)
+bb build-compressed clojure_skill_builder --ratio 10
+
+# Clean build artifacts
+bb clean-build
+
+# List all skills with metadata
+bb list-skills
+```
+
+### Testing Skills
+
+```bash
+# Check spelling
+bb typos
+
+# Auto-fix typos
+bb typos-fix
+```
+
+### prompt Compression (Optional)
+
+Reduce token usage by 10-20x using LLMLingua:
+
+```bash
+# One-time setup (downloads ~500MB model)
+bb setup-python
+
+# Build and compress in one step
+bb build-compressed clojure_skill_builder --ratio 10
+
+# Or compress existing files
+bb compress _build/clojure_skill_builder.md --ratio 10
+
+# Compress individual skills
+bb compress-skill skills/libraries/data_validation/malli.md --ratio 10
+```
+
+**Compression ratios:**
+- 3-5x: Minimal quality impact, most detail preserved
+- 5-10x: Balanced approach, good default
+- 10-20x: Aggressive saving, semantic meaning intact
+
+See QUICKSTART_COMPRESSION.md for detailed guide.
+
 ## Tools Available for Skill Creation
 
 Use these tools to understand Clojure features deeply before documenting:
