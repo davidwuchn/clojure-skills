@@ -138,16 +138,62 @@ make help                 # Show all available targets
 
 ```bash
 bb tasks                  # List all available tasks
+bb help                   # Show comprehensive help
+
+# Build Tasks
+bb build <name>           # Build a specific prompt
+bb build-all              # Build all prompts
+bb build-compressed <name> # Build and compress a prompt
+bb list-prompts           # List built prompts with sizes/tokens
+bb clean                  # Clean all build artifacts
+
+# Development Tasks
 bb test                   # Run tests with Kaocha
 bb lint                   # Lint with clj-kondo
 bb fmt                    # Format code with cljstyle
 bb fmt-check              # Check formatting
+bb nrepl                  # Start nREPL server (port 7889)
+bb watch [name]           # Watch and auto-rebuild on changes
+
+# Skills Management
+bb list-skills            # List all skills in table format
+bb compress-skill <path>  # Compress a single skill file
+
+# Quality Tasks
 bb typos                  # Check for typos
 bb typos-fix              # Auto-fix typos
-bb nrepl                  # Start nRepl server
-bb clean                  # Clean temp files
 bb ci                     # Run full CI pipeline
+
+# Other Tasks
+bb outdated               # Check for outdated dependencies
+bb main [args]            # Run main CLI
+bb setup-python           # Install Python dependencies
 ```
+
+### Task System Improvements (bb.edn)
+
+The `bb.edn` file has been enhanced with shared utility functions and better error handling:
+
+**Shared Utilities (`:init` block):**
+- `info-msg`, `success-msg`, `warning-msg`, `error-msg` - Consistent messaging
+- `require-arg` - Argument validation
+- `get-ratio-arg` - Parse compression ratios
+- `estimate-tokens` - Token count estimation (~4 chars/token)
+- `format-number` - Format numbers with thousands separators
+- `format-size` - Human-readable file sizes (KB/MB)
+- `extract-frontmatter` - Parse YAML frontmatter from skills
+- `print-table` - Generic table formatting
+
+**Benefits:**
+- Consistent error messages across all tasks
+- Proper exit codes for CI/CD integration
+- Timing information for long-running tasks
+- Better validation before executing operations
+- Reusable code reduces duplication
+
+**Note:** bb.edn uses EDN format, not full Clojure:
+- Use `(fn [x] ...)` instead of `#(...)`
+- Use `(re-pattern "...")` instead of `#"..."`
 
 ### Building Prompts
 
@@ -155,6 +201,9 @@ Prompts are built using `pandoc` with YAML frontmatter:
 
 ```bash
 # Build a specific prompt
+bb build clojure_build
+
+# Or use make (alternative)
 make _build/clojure_build.md
 
 # The build process:
@@ -207,6 +256,251 @@ clojure -M:dev:test -m kaocha.runner --plugin kaocha.plugin/cloverage
 # Run specific test namespace
 clojure -M:dev:test -m kaocha.runner --focus clojure-skills.main-test
 ```
+
+### New and Improved Tasks
+
+#### `bb help` - Comprehensive Help
+
+Shows organized help for all available tasks:
+
+```bash
+bb help
+
+# Output includes:
+# - Build Tasks
+# - Development Tasks
+# - Skills Management
+# - Quality Tasks
+# - Other Tasks
+```
+
+#### `bb list-skills` - Skills Inventory
+
+Lists all skills in a formatted table with metadata:
+
+```bash
+bb list-skills
+
+# Output shows:
+# CATEGORY      NAME                          PATH                         SIZE   TOKENS
+# language      clojure_introduction          language/clojure_intro.md   2.7KB     682
+# libraries     malli_schema_validation       libraries/.../malli.md     10.8KB   2,773
+# ...
+# TOTAL         63 skills                                                647KB  165,555
+```
+
+**Features:**
+- Organized by category (language, libraries, testing, tooling, etc.)
+- Shows skill name from frontmatter metadata
+- File path relative to skills/ directory
+- File size in human-readable format (KB/MB)
+- Estimated token count (Anthropic ~4 chars/token)
+- Total size and token count at bottom
+
+**Use cases:**
+- Get overview of available skills
+- Estimate prompt size when composing skills
+- Identify which skills to include in prompts
+- Track total skill library size
+
+#### `bb watch [name]` - Auto-rebuild on Changes
+
+Watches for file changes and automatically rebuilds prompts:
+
+```bash
+# Watch all prompts
+bb watch
+
+# Watch specific prompt
+bb watch clojure_skill_builder
+```
+
+**Watches these directories:**
+- `prompts/` - Prompt definition files
+- `skills/` - Individual skill markdown files
+- `prompt_templates/` - YAML metadata and templates
+
+**Behavior:**
+- Triggers rebuild when `.md` files are modified
+- Shows which file triggered the rebuild
+- Displays build status (success/failure)
+- Continues watching after each rebuild
+
+**Use cases:**
+- Rapid iteration on skills
+- Live preview of prompt changes
+- Development workflow without manual rebuilds
+
+#### `bb clean` - Consolidated Cleanup
+
+Removes all build artifacts and temporary files:
+
+```bash
+bb clean
+```
+
+**Cleans:**
+- `_build/` - Built prompt files
+- `target/` - Compiled artifacts
+- `test-db.db` - Test database
+- `junit.xml` - Test reports
+- `docs.html` - Documentation output
+
+**Note:** Combines the old `clean` and `clean-build` tasks into one comprehensive cleanup.
+
+#### `bb build <name>` - Enhanced Build with Validation
+
+Improved build task with better error handling:
+
+```bash
+bb build clojure_skill_builder
+```
+
+**New features:**
+- Validates all required files exist before building
+- Checks that skill files referenced in YAML exist
+- Clear error messages showing which files are missing
+- Creates `_build/` directory if it doesn't exist
+- Uses consistent messaging (info/success/error)
+
+**Error examples:**
+```bash
+# Missing prompt file
+ERROR: Prompt file not found: prompts/nonexistent.md
+
+# Missing skill files
+ERROR: Missing skill files:
+  - skills/missing/file1.md
+  - skills/missing/file2.md
+```
+
+#### `bb list-prompts` - Built Prompts Overview
+
+Lists all built prompts with size and token information:
+
+```bash
+bb list-prompts
+
+# Output:
+# PROMPT                    SIZE      CHARS      TOKENS
+# clojure_build            234.5KB   240,123    60,031
+# clojure_skill_builder    345.2KB   353,456    88,364
+# TOTAL                    579.7KB   593,579   148,395
+```
+
+**Features:**
+- Shows file size, character count, and estimated tokens
+- Formatted with thousands separators for readability
+- Total row showing combined statistics
+- Note about token estimation method
+
+#### `bb ci` - CI Pipeline with Better Feedback
+
+Enhanced CI pipeline with improved messaging:
+
+```bash
+bb ci
+```
+
+**Runs in order:**
+1. `clean` - Remove artifacts
+2. `fmt-check` - Verify code formatting
+3. `lint` - Check code with clj-kondo
+4. `typos` - Check for spelling errors
+5. `test` - Run test suite
+
+**New features:**
+- Each step shows timing information
+- Clear success/failure messages
+- Exits on first failure with proper exit code
+- Success message when entire pipeline completes
+
+#### `bb test` - Test with Timing
+
+Runs tests and shows elapsed time:
+
+```bash
+bb test
+
+# Output includes:
+# INFO: Running tests...
+# [test output]
+# SUCCESS: Tests passed in 3.45s
+```
+
+#### `bb lint` - Lint with Timing
+
+Runs clj-kondo and shows results with timing:
+
+```bash
+bb lint
+
+# Output includes:
+# INFO: Running lint task...
+# [lint output]
+# SUCCESS: Lint passed in 1.23s
+```
+
+#### `bb fmt-check` - Format Check with Guidance
+
+Checks code formatting and provides helpful message on failure:
+
+```bash
+bb fmt-check
+
+# On failure:
+# ERROR: Format check failed - run 'bb fmt' to fix
+```
+
+#### `bb typos` - Typo Check with Guidance
+
+Checks for typos and provides helpful message:
+
+```bash
+bb typos
+
+# On success:
+# SUCCESS: No typos found
+
+# On failure:
+# ERROR: Typos found - run 'bb typos-fix' to fix
+```
+
+#### Compression Tasks
+
+**`bb compress <name> --ratio N`**
+
+Compress built prompt files using LLMLingua:
+
+```bash
+# Compress with default 10x ratio
+bb compress clojure_skill_builder
+
+# Compress with custom ratio
+bb compress clojure_skill_builder --ratio 15
+```
+
+**`bb compress-skill <path> --ratio N`**
+
+Compress individual skill files:
+
+```bash
+bb compress-skill skills/libraries/data_validation/malli.md --ratio 10
+```
+
+**`bb build-compressed <name> --ratio N`**
+
+Build and compress in one command:
+
+```bash
+bb build-compressed clojure_skill_builder --ratio 10
+```
+
+**Features:**
+- Uses LLMLingua for semantic compression
+- Maintains meaning while reducing tokens
+- Default 10x compression ratio
+- Customizable compression levels (3-20x)
 
 ---
 
@@ -466,28 +760,43 @@ word = "word"
 ### Quick Reference Card
 
 ```bash
-# Development
-bb nrepl                  # Start REPL server
-bb test                   # Run tests
-bb lint                   # Lint code
-bb fmt                    # Format code
-bb ci                     # Full CI pipeline
+# Help & Information
+bb help                   # Show comprehensive help
+bb tasks                  # List all tasks
+bb list-skills            # Show all skills in table
+bb list-prompts           # Show built prompts with sizes
 
 # Building
-make                      # Build default prompt
-make clean                # Clean build artifacts
+bb build <name>           # Build a specific prompt
+bb build-all              # Build all prompts
+bb build-compressed <name> # Build and compress prompt
+bb clean                  # Clean all artifacts
+bb watch [name]           # Auto-rebuild on changes
+make                      # Build default prompt (alternative)
 
-# Quality
-bb typos                  # Check spelling
+# Development
+bb nrepl                  # Start REPL server (port 7889)
+bb test                   # Run tests (with timing)
+bb lint                   # Lint code (with timing)
+bb fmt                    # Format code
 bb fmt-check              # Check formatting
+bb ci                     # Full CI pipeline (clean, fmt, lint, typos, test)
+
+# Quality Checks
+bb typos                  # Check spelling
+bb typos-fix              # Auto-fix typos
+
+# Compression
+bb compress <name> --ratio N        # Compress built prompt
+bb compress-skill <path> --ratio N  # Compress single skill
 
 # Dependencies
 clojure -X:deps tree      # Show dependency tree
 bb outdated               # Check for outdated deps
 
-# Documentation
-bb tasks                  # List all tasks
-make help                 # List make targets
+# Other
+bb main [args]            # Run main CLI
+bb setup-python           # Install Python dependencies
 ```
 
 ---
@@ -514,32 +823,61 @@ make help                 # List make targets
 
 ### When Asked to Add a Skill
 
-1. Determine the appropriate category (`language/`, `clojure_mcp/`, etc.)
-2. Create a focused markdown file
-3. Include practical examples
-4. Test any code examples in the REPL
-5. Check spelling with `bb typos`
+1. Check existing skills with `bb list-skills` to avoid duplication
+2. Determine the appropriate category (`language/`, `clojure_mcp/`, etc.)
+3. Create a focused markdown file with YAML frontmatter
+4. Include practical examples
+5. Test any code examples in the REPL
+6. Check spelling with `bb typos`
+7. Verify skill appears in `bb list-skills` output
 
 ### When Asked to Create a Prompt
 
-1. Identify which skills are needed
-2. Create prompt file with YAML frontmatter
-3. List skills in logical order
-4. Add agent introduction
-5. Build and verify output with `make`
+1. Use `bb list-skills` to identify available skills
+2. Create prompt file with YAML frontmatter in `prompts/<name>.md`
+3. Create metadata file in `prompt_templates/<name>.yaml`
+4. List skills in logical order in the YAML
+5. Add agent introduction in the prompt file
+6. Build with `bb build <name>` and verify output
+7. Check size with `bb list-prompts`
+8. Optional: Use `bb watch <name>` for iterative development
 
 ### When Asked to Modify Code
 
 1. Read the existing code first
 2. Check for existing tests
 3. Make changes incrementally
-4. Run tests after each change
-5. Format and lint before committing
-6. Run full CI pipeline
+4. Run tests after each change with `bb test`
+5. Format code with `bb fmt`
+6. Lint with `bb lint`
+7. Check spelling with `bb typos`
+8. Run full CI pipeline with `bb ci`
+
+### When Asked to Check Skill Library
+
+1. Run `bb list-skills` to see all available skills
+2. Check total size and token count
+3. Identify skills by category (language, libraries, testing, tooling)
+4. Note token estimates for prompt composition
+
+### When Asked About Build Status
+
+1. Run `bb list-prompts` to see built prompts
+2. Check file sizes and token counts
+3. Verify prompts exist in `_build/` directory
+4. Use `bb build <name>` to rebuild if needed
+
+### When Developing Skills or Prompts
+
+1. Use `bb watch <name>` to auto-rebuild on changes
+2. Edit skill files in `skills/` directory
+3. Changes trigger automatic rebuild
+4. Check console output for build success/failure
+5. Stop watch with Ctrl+C when done
 
 ### When Debugging
 
-1. Use `bb nrepl` to start a REPL
+1. Use `bb nrepl` to start a REPL on port 7889
 2. Load the namespace with `(require '[namespace :as alias] :reload)`
 3. Test functions interactively
 4. Use `(clojure.pprint/pprint data)` to inspect data structures
@@ -557,9 +895,23 @@ This repository is designed for **modular, composable prompt engineering** for C
 - **Testability**: Code should be tested via REPL and Kaocha
 - **Quality**: Use linting, formatting, and spell checking
 - **Documentation**: Keep skills and prompts well-documented
+- **Visibility**: Use `bb list-skills` and `bb list-prompts` for inventory
+- **Automation**: Use `bb watch` for rapid iteration
+
+**Essential Commands:**
+- `bb help` - Show all available tasks
+- `bb list-skills` - See all 63 skills with sizes/tokens
+- `bb list-prompts` - See built prompts with statistics
+- `bb watch <name>` - Auto-rebuild on changes
+- `bb build <name>` - Build a specific prompt
+- `bb ci` - Run full quality pipeline
+- `bb test` - Run tests with timing
+- `bb lint` - Lint with timing
+- `bb typos` - Check spelling
 
 **When in doubt:**
-- Check existing skills for patterns
-- Run `bb tasks` or `make help`
-- Test in the REPL
+- Run `bb help` for comprehensive task list
+- Check `bb list-skills` to see what's available
+- Use `bb watch` for iterative development
 - Run `bb ci` before committing
+- Test in the REPL with `bb nrepl`

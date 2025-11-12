@@ -3,7 +3,9 @@
         io.github.paintparty/bling
         {:mvn/version "0.6.0"}
         clj-commons/clj-yaml
-        {:mvn/version "1.0.29"}}
+        {:mvn/version "1.0.29"}
+        org.clj-commons/pretty
+        {:mvn/version "3.1.0"}}
 
  :paths ["src" "test"]
 
@@ -12,246 +14,466 @@
              [bling.core :as bling]
              [babashka.process :as p]
              [clj-yaml.core :as yaml]
-             [clojure.string :as str])
+             [clojure.string :as str]
+             [clojure.pprint :as pp])
+
+  :init (do
+          ;; Shared utility functions
+          (defn info-msg [msg]
+            (bling/callout {:type :info} (bling/bling [:bold msg])))
+
+          (defn success-msg [msg]
+            (bling/callout {:type :success} (bling/bling [:bold msg])))
+
+          (defn warning-msg [msg]
+            (bling/callout {:type :warning} (bling/bling [:bold msg])))
+
+          (defn error-msg [msg]
+            (bling/callout {:type :error} (bling/bling [:bold msg])))
+
+          (defn require-arg [arg-name]
+            (or (first *command-line-args*)
+                (throw (ex-info (str "Usage: bb <task> <" arg-name ">") {}))))
+
+          (defn get-ratio-arg []
+            (let [args *command-line-args*
+                  ratio-idx (first (keep-indexed
+                                    (fn [idx arg] (when (= "--ratio" arg) idx))
+                                    args))
+                  ratio-arg (when ratio-idx (nth args (inc ratio-idx) nil))]
+              (if ratio-arg (parse-double ratio-arg) 10.0)))
+
+          (defn estimate-tokens [text]
+            (Math/ceil (/ (count text) 4.0)))
+
+          (defn format-number [n]
+            (let [s (str (long n))
+                  digits (reverse s)
+                  parts (partition-all 3 digits)
+                  formatted-parts (map (fn [part] (apply str (reverse part))) parts)]
+              (str/join "," (reverse formatted-parts))))
+
+          (defn format-size [bytes]
+            (cond
+              (< bytes 1024) (str bytes "B")
+              (< bytes (* 1024 1024)) (str (format "%.1f" (/ bytes 1024.0)) "KB")
+              :else (str (format "%.1f" (/ bytes 1024.0 1024.0)) "MB")))
+
+          (defn extract-frontmatter [file-path]
+            (let [content (slurp file-path)
+                  lines (str/split-lines content)]
+              (when (= "---" (first lines))
+                (let [find-end (fn [lines]
+                                 (first (keep-indexed
+                                         (fn [idx line]
+                                           (when (and (> idx 0)
+                                                      (= "---" line))
+                                             idx))
+                                         lines)))
+                      end-idx (find-end lines)]
+                  (when end-idx
+                    (yaml/parse-string
+                     (str/join "\n" (take (dec end-idx) (drop 1 lines)))))))))
+
+          (defn print-table [rows]
+            (when (seq rows)
+              (let [;; Calculate column widths
+                    col-keys (keys (first rows))
+                    col-widths (into {}
+                                     (for [k col-keys]
+                                       [k (apply max (map (fn [r] (count (str (get r k)))) rows))]))
+
+                    ;; Format a single row
+                    format-row (fn [row]
+                                 (str/join "  "
+                                           (for [k col-keys]
+                                             (let [val (str (get row k))
+                                                   width (get col-widths k)]
+                                               (format (str "%-" width "s") val)))))]
+
+                ;; Print all rows
+                (doseq [row rows]
+                  (println "  " (format-row row)))))))
 
   ;; Build a specific prompt file by name
   build
   {:doc "Build a specific prompt file by name (without .md extension)\nUsage: bb build clojure_skill_builder"
-   :task (let [name (or (first *command-line-args*)
-                        (throw (ex-info "Usage: bb build <name>" {})))
-               prompt (str "prompts/" name ".md")
-               metadata (str "prompt_templates/" name ".yaml")
-               output (str "_build/" name ".md")
-               template "prompt_templates/combine.md"]
+   :task (let [name (require-arg "name")
+               prompt-file (str "prompts/" name ".md")
+               metadata-file (str "prompt_templates/" name ".yaml")
+               output-file (str "_build/" name ".md")
+               template-file "prompt_templates/combine.md"]
 
-           (when-not (fs/exists? prompt)
-             (throw (ex-info (str "Error: Prompt file not found: " prompt) {})))
+           ;; Validate all required files exist
+           (when-not (fs/exists? prompt-file)
+             (error-msg (str "Prompt file not found: " prompt-file))
+             (System/exit 1))
 
-           (when-not (fs/exists? metadata)
-             (throw (ex-info (str "Error: Metadata file not found: " metadata) {})))
+           (when-not (fs/exists? metadata-file)
+             (error-msg (str "Metadata file not found: " metadata-file))
+             (System/exit 1))
 
-           (bling/callout
-            {:type :info}
-            (bling/bling [:bold (str "Building " output "...")]))
+           (when-not (fs/exists? template-file)
+             (error-msg (str "Template file not found: " template-file))
+             (System/exit 1))
 
+           (info-msg (str "Building " output-file "..."))
            (fs/create-dirs "_build")
 
-           ;; Read skills from metadata YAML
-           (let [meta-content (yaml/parse-string (slurp metadata))
+           ;; Read and validate skills
+           (let [meta-content (yaml/parse-string (slurp metadata-file))
                  skills (get meta-content :skills [])
-                 skill-files (str/join " " skills)
-                 pandoc-cmd (str "pandoc " prompt " " skill-files
-                                 " --metadata-file=" metadata
-                                 " --template=" template
-                                 " -o " output)]
+                 missing-skills (filter (fn [s] (not (fs/exists? s))) skills)]
 
-             (shell pandoc-cmd)
+             (when (seq missing-skills)
+               (error-msg "Missing skill files:")
+               (doseq [skill missing-skills]
+                 (println "  -" skill))
+               (System/exit 1))
 
-             (bling/callout
-              {:type :success}
-              (bling/bling [:bold (str "Build successful: " output)]))))}
+             (let [skill-files (str/join " " skills)
+                   pandoc-cmd (str "pandoc " prompt-file " " skill-files
+                                   " --metadata-file=" metadata-file
+                                   " --template=" template-file
+                                   " -o " output-file)]
+
+               (shell pandoc-cmd)
+               (success-msg (str "Build successful: " output-file)))))}
 
   ;; Build all prompt files
   build-all
   {:doc "Build all prompt files"
    :task (do
-           (bling/callout
-            {:type :info}
-            (bling/bling [:bold "Building all prompts..."]))
+           (info-msg "Building all prompts...")
 
            ;; Build clojure_skill_builder
            (shell "bb build clojure_skill_builder")
 
            ;; Build clojure_build
            (shell "bb build clojure_build")
+           (shell "bb build shortcut_cli_builder")
 
-           (bling/callout
-            {:type :success}
-            (bling/bling [:bold "All builds complete!"])))}
+           (success-msg "All builds complete!"))}
 
-  ;; Clean build artifacts
-  clean-build
-  {:doc "Clean all build artifacts from _build directory"
+  ;; List built prompts with token counts
+  list-prompts
+  {:doc "List all built prompts with file sizes and token counts"
+   :task (let [build-dir "_build"]
+
+           (if-not (fs/exists? build-dir)
+             (do
+               (warning-msg "No _build directory found. Run 'bb build-all' first.")
+               (System/exit 1))
+
+             (let [prompt-files (sort (filter (fn [f]
+                                                (str/ends-with? (str f) ".md"))
+                                              (fs/list-dir build-dir)))
+
+                   ;; Collect data for each prompt
+                   prompts (for [file prompt-files]
+                             (let [file-path (str file)
+                                   content (slurp file-path)
+                                   file-size (fs/size file)
+                                   char-count (count content)
+                                   token-count (estimate-tokens content)
+                                   filename (fs/file-name file)]
+                               {:name (str/replace filename ".md" "")
+                                :file file-path
+                                :size file-size
+                                :size-str (format-size file-size)
+                                :chars char-count
+                                :tokens (long token-count)}))
+
+                   ;; Calculate totals
+                   total-size (reduce + (map :size prompts))
+                   total-chars (reduce + (map :chars prompts))
+                   total-tokens (reduce + (map :tokens prompts))
+
+                   ;; Prepare table data
+                   table-data (concat
+                               [{:name "PROMPT" :size "SIZE" :chars "CHARS" :tokens "TOKENS"}
+                                {:name "------" :size "----" :chars "-----" :tokens "------"}]
+                               (for [p prompts]
+                                 {:name (:name p)
+                                  :size (:size-str p)
+                                  :chars (format-number (:chars p))
+                                  :tokens (format-number (:tokens p))})
+                               [{:name "------" :size "----" :chars "-----" :tokens "------"}
+                                {:name "TOTAL"
+                                 :size (format-size total-size)
+                                 :chars (format-number total-chars)
+                                 :tokens (format-number total-tokens)}])
+
+                   ;; Calculate column widths
+                   col-widths {:name (apply max (map (fn [x] (count (:name x))) table-data))
+                               :size (apply max (map (fn [x] (count (:size x))) table-data))
+                               :chars (apply max (map (fn [x] (count (:chars x))) table-data))
+                               :tokens (apply max (map (fn [x] (count (:tokens x))) table-data))}
+
+                   ;; Format row
+                   format-row (fn [row]
+                                (str "  "
+                                     (format (str "%-" (:name col-widths) "s") (:name row))
+                                     "  "
+                                     (format (str "%" (:size col-widths) "s") (:size row))
+                                     "  "
+                                     (format (str "%" (:chars col-widths) "s") (:chars row))
+                                     "  "
+                                     (format (str "%" (:tokens col-widths) "s") (:tokens row))))]
+
+               (info-msg "Built Prompts")
+
+               (println)
+               (doseq [row table-data]
+                 (println (format-row row)))
+
+               (println)
+               (println (bling/bling [:dim "Note: Token count is estimated (~4 chars per token)"]))
+               (println (bling/bling [:dim "      Anthropic's Claude models use this approximation."])))))}
+
+  ;; Clean all build artifacts and temporary files
+  clean
+  {:doc "Clean all build artifacts and temporary files"
    :task (do
-           (bling/callout
-            {:type :info}
-            (bling/bling [:bold "Cleaning _build directory..."]))
+           (info-msg "Cleaning build artifacts...")
 
            (when (fs/exists? "_build")
-             (doseq [f (fs/list-dir "_build")]
-               (fs/delete f)))
-
-           (bling/callout
-            {:type :success}
-            (bling/bling [:bold "Clean complete"])))}
-
-  clean
-  {:doc "Cleans the temp build files"
-   :task (do
-           (bling/callout
-            {:type :info}
-            (bling/bling [:bold "Running clean task"]))
-
-           (fs/delete-tree "target")
+             (fs/delete-tree "_build"))
+           (when (fs/exists? "target")
+             (fs/delete-tree "target"))
            (fs/delete-if-exists "test-db.db")
            (fs/delete-if-exists "junit.xml")
-           (fs/delete-if-exists "docs.html"))}
+           (fs/delete-if-exists "docs.html")
+
+           (success-msg "Clean complete"))}
 
   test
-  {:doc "Runs the projects with kocha"
+  {:doc "Run tests with Kaocha"
    :task (do
-           (bling/callout {:type :info}
-                          (bling/bling [:bold "Running test task"]))
-
-           (time
-            (clojure "-M:jvm-base:dev:test")))}
+           (info-msg "Running tests...")
+           (let [start (System/currentTimeMillis)
+                 result (clojure {:continue true} "-M:jvm-base:dev:test")
+                 elapsed (- (System/currentTimeMillis) start)]
+             (if (zero? (:exit result))
+               (success-msg (format "Tests passed in %.2fs" (/ elapsed 1000.0)))
+               (do
+                 (error-msg "Tests failed")
+                 (System/exit 1)))))}
 
   lint
-  {:doc "Lints the code base with clj-kondo"
+  {:doc "Lint the code base with clj-kondo"
    :task (do
-           (bling/callout
-            {:type :info}
-            (bling/bling [:bold "Running lint task"]))
-           (time
-            (clojure "-M:lint -m clj-kondo.main --lint dev src test")))}
+           (info-msg "Running lint task...")
+           (let [start (System/currentTimeMillis)
+                 result (clojure {:continue true} "-M:lint -m clj-kondo.main --lint dev src test")
+                 elapsed (- (System/currentTimeMillis) start)]
+             (if (zero? (:exit result))
+               (success-msg (format "Lint passed in %.2fs" (/ elapsed 1000.0)))
+               (do
+                 (error-msg "Lint failed")
+                 (System/exit 1)))))}
 
-  main {:doc "Run the main command line interface"
-        :task (do
-                (apply clojure (into ["-M:jvm-base:main"] *command-line-args*)))}
+  main
+  {:doc "Run the main command line interface"
+   :task (do
+           (apply clojure (into ["-M:jvm-base:main"] *command-line-args*)))}
 
   outdated
-  {:doc "Run command to detect outdate version of our deps"
-   :task (clojure "-M:dev:outdated -m depot.outdated.main")}
+  {:doc "Check for outdated dependencies"
+   :task (do
+           (info-msg "Checking for outdated dependencies...")
+           (clojure "-M:dev:outdated -m depot.outdated.main"))}
 
   nrepl
-  {:doc "Run a nRepl"
-   :task
-   (do
-     (bling/callout
-      {:type :info}
-      (bling/bling [:bold "Running nRepl"]))
-     (clojure "-M:jvm-base:dev:nrepl"))}
+  {:doc "Start nREPL server on port 7889"
+   :task (do
+           (info-msg "Starting nREPL server on port 7889...")
+           (clojure "-M:jvm-base:dev:nrepl"))}
 
   fmt
-  {:doc "Fix format clojure code"
-   :task
-   (do
-     (clojure "-M:dev:format -m cljstyle.main fix scripts src dev"))}
+  {:doc "Format Clojure code with cljstyle"
+   :task (do
+           (info-msg "Formatting code...")
+           (clojure "-M:dev:format -m cljstyle.main fix scripts src dev")
+           (success-msg "Code formatted"))}
 
   fmt-check
-  {:doc "Check format clojure code"
-   :task
-   (do
-     (clojure "-M:dev:format -m cljstyle.main check scripts src dev"))}
+  {:doc "Check Clojure code formatting"
+   :task (do
+           (info-msg "Checking code formatting...")
+           (let [result (clojure {:continue true} "-M:dev:format -m cljstyle.main check scripts src dev")]
+             (if (zero? (:exit result))
+               (success-msg "Format check passed")
+               (do
+                 (error-msg "Format check failed - run 'bb fmt' to fix")
+                 (System/exit 1)))))}
 
   typos
   {:doc "Check for typos in the codebase"
    :task (do
-           (bling/callout
-            {:type :info}
-            (bling/bling [:bold "Checking for typos..."]))
-           (shell "typos"))}
+           (info-msg "Checking for typos...")
+           (let [result (shell {:continue true} "typos")]
+             (if (zero? (:exit result))
+               (success-msg "No typos found")
+               (do
+                 (error-msg "Typos found - run 'bb typos-fix' to fix")
+                 (System/exit 1)))))}
 
   typos-fix
   {:doc "Automatically fix typos in the codebase"
    :task (do
-           (bling/callout
-            {:type :info}
-            (bling/bling [:bold "Fixing typos..."]))
-           (shell "typos --write-changes"))}
+           (info-msg "Fixing typos...")
+           (shell "typos --write-changes")
+           (success-msg "Typos fixed"))}
 
   ci
-  {:doc "Runs linting and tests for the CI"
-   :task (do (run 'clean)
-             (run 'fmt-check)
-             (run 'lint)
-             (run 'typos)
-             (run 'test))}
+  {:doc "Run full CI pipeline: clean, format check, lint, typos, test"
+   :task (do
+           (run 'clean)
+           (run 'fmt-check)
+           (run 'lint)
+           (run 'typos)
+           (run 'test)
+           (success-msg "CI pipeline completed successfully"))}
 
   list-skills
-  {:doc "List all skills with their paths and metadata"
+  {:doc "List all skills with metadata in a table format"
    :task (let [skills-dir "skills"
                skill-files (sort (map str (fs/glob skills-dir "**/*.md")))
-
-               ;; Function to extract YAML frontmatter
-               extract-frontmatter (fn [file-path]
-                                     (let [content (slurp file-path)
-                                           lines (str/split-lines content)]
-                                       (when (= "---" (first lines))
-                                         (let [find-end (fn [lines]
-                                                          (first (keep-indexed
-                                                                  (fn [idx line]
-                                                                    (when (and (> idx 0)
-                                                                               (= "---" line))
-                                                                      idx))
-                                                                  lines)))
-                                               end-idx (find-end lines)]
-                                           (when end-idx
-                                             (yaml/parse-string
-                                              (str/join "\n" (take (dec end-idx) (drop 1 lines)))))))))
 
                ;; Parse all skills
                skills (for [file-path skill-files]
                         (let [metadata (extract-frontmatter file-path)
+                              file-size (fs/size file-path)
+                              content (slurp file-path)
+                              char-count (count content)
+                              token-count (long (estimate-tokens content))
                               relative-path (str/replace file-path
                                                          (str (fs/file skills-dir) "/")
-                                                         "")]
-                          {:path file-path
-                           :relative-path relative-path
+                                                         "")
+                              category (first (str/split relative-path (re-pattern "/")))]
+                          {:category category
                            :name (get metadata :name "unknown")
+                           :path relative-path
+                           :size (format-size file-size)
+                           :tokens (format-number token-count)
                            :description (get metadata :description "")}))
 
-               ;; Group by category
-               get-category (fn [skill] (first (str/split (:relative-path skill) (re-pattern "/"))))
-               by-category (group-by get-category skills)]
+               ;; Calculate totals
+               total-size (reduce + (map (fn [s] (fs/size (str "skills/" (:path s)))) skills))
+               total-tokens (reduce + (map (fn [s] (long (estimate-tokens (slurp (str "skills/" (:path s)))))) skills))
 
-           (bling/callout
-            {:type :info}
-            (bling/bling [:bold "Available Skills"]))
+               ;; Prepare table data
+               table-data (concat
+                           [{:category "CATEGORY" :name "NAME" :path "PATH" :size "SIZE" :tokens "TOKENS"}
+                            {:category "--------" :name "----" :path "----" :size "----" :tokens "------"}]
+                           (sort-by (juxt :category :name) skills)
+                           [{:category "--------" :name "----" :path "----" :size "----" :tokens "------"}
+                            {:category "TOTAL" :name (str (count skills) " skills") :path "" :size (format-size total-size) :tokens (format-number total-tokens)}])
+
+               ;; Calculate column widths
+               col-widths {:category (apply max (map (fn [row] (count (:category row))) table-data))
+                           :name (apply max (map (fn [row] (count (:name row))) table-data))
+                           :path (apply max (map (fn [row] (count (:path row))) table-data))
+                           :size (apply max (map (fn [row] (count (:size row))) table-data))
+                           :tokens (apply max (map (fn [row] (count (:tokens row))) table-data))}
+
+               ;; Format row
+               format-row (fn [row]
+                            (str "  "
+                                 (format (str "%-" (:category col-widths) "s") (:category row))
+                                 "  "
+                                 (format (str "%-" (:name col-widths) "s") (:name row))
+                                 "  "
+                                 (format (str "%-" (:path col-widths) "s") (:path row))
+                                 "  "
+                                 (format (str "%" (:size col-widths) "s") (:size row))
+                                 "  "
+                                 (format (str "%" (:tokens col-widths) "s") (:tokens row))))]
+
+           (info-msg "Available Skills")
 
            (println)
-           (println (bling/bling [:bold "Total Skills:"] (str (count skills))))
-           (println)
+           (doseq [row table-data]
+             (println (format-row row)))
 
-           ;; Print organized by category
-           (doseq [[category skill-list] (sort-by key by-category)]
-             (println (bling/bling [:bold :cyan (str "## " (str/capitalize category))]))
-             (doseq [skill (sort-by :name skill-list)]
-               (println)
-               (println (bling/bling [:bold "  Name:"] (:name skill)))
-               (println (bling/bling "  Path:" (:path skill)))
-               (when (seq (:description skill))
-                 (let [desc (if (string? (:description skill))
-                              (:description skill)
-                              (str (:description skill)))
-                       short-desc (if (> (count desc) 100)
-                                    (str (subs desc 0 97) "...")
-                                    desc)]
-                   (println (bling/bling "  Desc:" short-desc)))))
-             (println))
+           (println)
+           (println (bling/bling [:dim "Note: Token count is estimated (~4 chars per token)"])))}
 
-           ;; Also print as YAML-friendly list for prompt templates
+  watch
+  {:doc "Watch for changes and rebuild prompts automatically\nUsage: bb watch [prompt-name]"
+   :task (let [name (first *command-line-args*)]
+           (info-msg (if name
+                       (str "Watching for changes to rebuild " name "...")
+                       "Watching for changes to rebuild all prompts..."))
+
+           ;; Use babashka.fs/watch
+           (let [watch-paths ["prompts" "skills" "prompt_templates"]]
+             (apply fs/watch
+                    (for [path watch-paths
+                          :when (fs/exists? path)]
+                      path)
+                    (fn [{:keys [type path]}]
+                      (when (and (= :modify type)
+                                 (str/ends-with? (str path) ".md"))
+                        (info-msg (str "Change detected: " path))
+                        (try
+                          (if name
+                            (shell (str "bb build " name))
+                            (shell "bb build-all"))
+                          (catch Exception e
+                            (error-msg (str "Build failed: " (.getMessage e))))))))))}
+
+  help
+  {:doc "Show detailed help for all tasks"
+   :task (do
            (println)
-           (println (bling/bling [:bold :yellow "## For prompt_templates (copy this to .yaml):"]))
+           (println (bling/bling [:bold :cyan "Clojure Skills - Task Runner"]))
            (println)
-           (println "skills:")
-           (doseq [skill (sort-by :path skills)]
-             (println (str "  - " (:path skill)))))}
+           (println "Usage: bb <task> [options]")
+           (println)
+           (println (bling/bling [:bold "Build Tasks:"]))
+           (println "  build <name>              Build a specific prompt")
+           (println "  build-all                 Build all prompts")
+           (println "  build-compressed <name>   Build and compress a prompt")
+           (println "  list-prompts              List built prompts with sizes")
+           (println "  clean                     Clean build artifacts")
+           (println)
+           (println (bling/bling [:bold "Development Tasks:"]))
+           (println "  test                      Run tests")
+           (println "  lint                      Lint code")
+           (println "  fmt                       Format code")
+           (println "  fmt-check                 Check formatting")
+           (println "  nrepl                     Start nREPL server")
+           (println "  watch [name]              Watch and rebuild on changes")
+           (println)
+           (println (bling/bling [:bold "Skills Management:"]))
+           (println "  list-skills               List all skills in table format")
+           (println "  compress-skill <path>     Compress a single skill")
+           (println)
+           (println (bling/bling [:bold "Quality Tasks:"]))
+           (println "  typos                     Check for typos")
+           (println "  typos-fix                 Fix typos automatically")
+           (println "  ci                        Run full CI pipeline")
+           (println)
+           (println (bling/bling [:bold "Other Tasks:"]))
+           (println "  outdated                  Check for outdated deps")
+           (println "  main [args]               Run main CLI")
+           (println "  setup-python              Install Python dependencies")
+           (println "  help                      Show this help message")
+           (println)
+           (println "Run 'bb tasks' to see all available tasks"))}
 
   ;; LLMLingua compression tasks
 
   setup-python
   {:doc "Install Python dependencies using pipenv"
    :task (do
-           (bling/callout
-            {:type :info}
-            (bling/bling [:bold "Installing Python dependencies with pipenv..."]))
+           (info-msg "Installing Python dependencies with pipenv...")
 
            (shell "pipenv install")
 
-           (bling/callout
-            {:type :success}
-            (bling/bling [:bold "Python environment ready!"]))
+           (success-msg "Python environment ready!")
 
            (println)
            (println "You can now use:")
@@ -263,9 +485,7 @@
   {:doc "Compress a built prompt file using LLMLingua\nUsage: bb compress clojure_skill_builder --ratio 10"
    :task (let [args *command-line-args*
                name (first args)
-               ratio-idx (first (keep-indexed (fn [idx arg] (when (= "--ratio" arg) idx)) args))
-               ratio-arg (when ratio-idx (nth args (inc ratio-idx) nil))
-               ratio (if ratio-arg (parse-double ratio-arg) 10.0)
+               ratio (get-ratio-arg)
 
                input (str "_build/" name ".md")
                output (str "_build/" name ".compressed.md")]
@@ -274,12 +494,11 @@
              (throw (ex-info "Usage: bb compress <name> [--ratio N]" {})))
 
            (when-not (fs/exists? input)
-             (throw (ex-info (str "Error: Built file not found: " input
-                                  "\nRun 'bb build " name "' first.") {})))
+             (error-msg (str "Built file not found: " input))
+             (println "\nRun 'bb build " name "' first.")
+             (System/exit 1))
 
-           (bling/callout
-            {:type :info}
-            (bling/bling [:bold (str "Compressing " input " with " ratio "x ratio...")]))
+           (info-msg (str "Compressing " input " with " ratio "x ratio..."))
 
            ;; Run Python compression script via pipenv
            (let [result (shell {:out :string
@@ -292,20 +511,17 @@
              (if (zero? (:exit result))
                (do
                  (println (:out result))
-                 (bling/callout
-                  {:type :success}
-                  (bling/bling [:bold (str "Compression successful: " output)])))
+                 (success-msg (str "Compression successful: " output)))
                (do
                  (println (:err result))
-                 (throw (ex-info "Compression failed" {:result result}))))))}
+                 (error-msg "Compression failed")
+                 (System/exit 1)))))}
 
   compress-skill
   {:doc "Compress a single skill file\nUsage: bb compress-skill skills/libraries/data_validation/malli.md --ratio 10"
    :task (let [args *command-line-args*
                input-file (first args)
-               ratio-idx (first (keep-indexed (fn [idx arg] (when (= "--ratio" arg) idx)) args))
-               ratio-arg (when ratio-idx (nth args (inc ratio-idx) nil))
-               ratio (if ratio-arg (parse-double ratio-arg) 10.0)
+               ratio (get-ratio-arg)
 
                ;; Create output path by adding .compressed before .md
                output-file (str/replace input-file (re-pattern "\\.md$") ".compressed.md")]
@@ -314,11 +530,10 @@
              (throw (ex-info "Usage: bb compress-skill <path/to/skill.md> [--ratio N]" {})))
 
            (when-not (fs/exists? input-file)
-             (throw (ex-info (str "Error: Skill file not found: " input-file) {})))
+             (error-msg (str "Skill file not found: " input-file))
+             (System/exit 1))
 
-           (bling/callout
-            {:type :info}
-            (bling/bling [:bold (str "Compressing " input-file " with " ratio "x ratio...")]))
+           (info-msg (str "Compressing " input-file " with " ratio "x ratio..."))
 
            (let [result (shell {:out :string
                                 :err :string
@@ -330,12 +545,11 @@
              (if (zero? (:exit result))
                (do
                  (println (:out result))
-                 (bling/callout
-                  {:type :success}
-                  (bling/bling [:bold (str "Compressed: " output-file)])))
+                 (success-msg (str "Compressed: " output-file)))
                (do
                  (println (:err result))
-                 (throw (ex-info "Compression failed" {:result result}))))))}
+                 (error-msg "Compression failed")
+                 (System/exit 1)))))}
 
   build-compressed
   {:doc "Build and compress a prompt file\nUsage: bb build-compressed clojure_skill_builder --ratio 10"

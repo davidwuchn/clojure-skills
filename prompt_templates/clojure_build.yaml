@@ -31,6 +31,7 @@ skills:
   - skills/libraries/logging/cambium_logback_json.md
   
   # Testing
+  - skills/testing/clojure_test.md
   - skills/testing/kaocha.md
   - skills/testing/matcher_combinators.md
   - skills/testing/scope_capture.md
