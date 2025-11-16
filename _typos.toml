@@ -5,6 +5,13 @@
 # EDN is a valid Clojure file format (Extensible Data Notation)
 edn = "edn"
 
+# "café" in French when percent-encoded shows as "caf" in examples
+caf = "caf"
+Caf = "Caf"
+
+# core.logic function names
+matche = "matche"
+
 [files]
 # Respect gitignore by default
 ignore-vcs = false

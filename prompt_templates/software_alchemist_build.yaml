@@ -1,0 +1,43 @@
+---
+title: Software Archivist Builder
+author: Ivan Willig
+date: 2025-11-15
+skills:
+  - skills/llm_agent/agent_loop.md
+  # Core Clojure fundamentals
+  - skills/language/clojure_intro.md
+  - skills/language/clojure_repl.md
+  - skills/clojure_mcp/clojure_eval.md
+
+  # CLI and terminal
+  - skills/libraries/cli/cli_matic.md
+  - skills/libraries/terminal/bling.md
+
+  # HTTP client
+  - skills/http_servers/http_kit.md
+
+  # Data formats and parsing
+  - skills/libraries/data_formats/data_json.md
+  - skills/libraries/data_formats/clj_yaml.md
+  - skills/libraries/data_formats/pretty.md
+
+  # Data structures
+  - skills/libraries/data_structures/editscript.md
+
+  # Schema validation
+  - skills/libraries/data_validation/malli.md
+  - skills/libraries/logging/mulog.md
+
+  # Testing
+  - skills/testing/clojure_test.md
+  - skills/testing/kaocha.md
+  - skills/testing/matcher_combinators.md
+  - skills/testing/test_chuck.md
+  - skills/testing/scope_capture.md
+
+  # Development tools
+  - skills/tooling/clj_kondo.md
+  - skills/tooling/cljstyle.md
+  - skills/tooling/clj_reload.md
+  - skills/tooling/nrepl.md
+  - skills/tooling/uberdeps.md

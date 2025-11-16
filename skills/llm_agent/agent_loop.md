@@ -22,6 +22,7 @@ Task → Gather Context → Take Action → Verify Output
 ```
 
 **Example workflow:**
+
 1. User asks: "Add a function to validate email addresses"
 2. Gather: Read the file, understand the namespace structure
 3. Action: Use `clojure_edit` to add the function
@@ -33,17 +34,20 @@ Task → Gather Context → Take Action → Verify Output
 
 Every task should follow this three-phase pattern:
 
-**1. Gather Context**
+## 1. Gather Context
+
 - Understand what exists
 - Clarify requirements
 - Explore the codebase
 
-**2. Take Action**
+## 2. Take Action
+
 - Make focused changes
 - Edit one thing at a time
 - Use appropriate tools
 
-**3. Verify Output**
+## 3. Verify Output
+
 - Test your changes
 - Check for errors
 - Confirm functionality
@@ -51,6 +55,7 @@ Every task should follow this three-phase pattern:
 ### Why This Matters
 
 Following this pattern ensures:
+
 - **Reliability** - Catch errors before the user sees them
 - **Transparency** - User sees your thought process
 - **Quality** - Changes are tested and verified
@@ -62,7 +67,8 @@ Following this pattern ensures:
 
 **Task**: User asks you to add a new function to an existing namespace.
 
-**Gather Context:**
+## Gather Context:
+
 ```clojure
 ;; 1. Read the file to understand structure
 ;; Use: clojure-mcp_read_file with path
@@ -77,7 +83,8 @@ Following this pattern ensures:
 "I see you want to add email validation. Should it accept nil values?"
 ```
 
-**Take Action:**
+## Take Action:
+
 ```clojure
 ;; Use clojure_edit to add the function
 ;; form_type: "defn"
@@ -86,7 +93,8 @@ Following this pattern ensures:
 ;; content: The new function code
 ```
 
-**Verify Output:**
+## Verify Output:
+
 ```clojure
 ;; 1. Reload the namespace
 (require 'myapp.core :reload)
@@ -107,7 +115,8 @@ Following this pattern ensures:
 
 **Task**: User reports a function is returning incorrect results.
 
-**Gather Context:**
+## Gather Context:
+
 ```clojure
 ;; 1. Read the problematic function
 ;; Use: clojure-mcp_read_file with collapsed view
@@ -124,7 +133,8 @@ Following this pattern ensures:
 ;; Observe the error or incorrect output
 ```
 
-**Take Action:**
+## Take Action:
+
 ```clojure
 ;; Fix using clojure_edit_replace_sexp for targeted changes
 ;; match_form: The buggy expression
@@ -135,7 +145,8 @@ Following this pattern ensures:
 ;; new_form: "(<= n 10)"
 ```
 
-**Verify Output:**
+## Verify Output:
+
 ```clojure
 ;; 1. Reload namespace
 (require 'myapp.core :reload)
@@ -153,7 +164,8 @@ Following this pattern ensures:
 
 **Task**: User asks to refactor a function to be more idiomatic.
 
-**Gather Context:**
+## Gather Context:
+
 ```clojure
 ;; 1. Read the current implementation
 ;; Use: clojure-mcp_read_file
@@ -166,7 +178,8 @@ Following this pattern ensures:
 ;; Look for: imperative loops, nested ifs, repeated code
 ```
 
-**Take Action:**
+## Take Action:
+
 ```clojure
 ;; Use clojure_edit to replace the entire function
 ;; form_type: "defn"
@@ -176,6 +189,7 @@ Following this pattern ensures:
 ```
 
 **Verify Output:**
+
 ```clojure
 ;; 1. Reload namespace
 (require 'myapp.core :reload)
@@ -196,7 +210,7 @@ Following this pattern ensures:
 **Gather Context:**
 ```clojure
 ;; 1. Confirm the library and version
-"I'll add metosin/malli for schema validation. 
+"I'll add metosin/malli for schema validation.
  The latest version is 0.16.0. Does that work?"
 
 ;; 2. Check current project structure
@@ -276,7 +290,7 @@ Following this pattern ensures:
 (myapp.core/failing-fn invalid-input)
 
 ;; 3. Explain what was wrong and how you fixed it
-"The function was calling get-in on nil. I added a check 
+"The function was calling get-in on nil. I added a check
  to return nil early when the input is nil."
 ```
 
@@ -334,36 +348,162 @@ Following this pattern ensures:
  and applies validation, normalization, and enrichment."
 ```
 
+### Workflow 7: Using clojure-lsp for Code Quality
+
+**Task**: Find and fix code quality issues across the project.
+
+**Gather Context:**
+```clojure
+;; 1. Analyze project and get diagnostics
+(require '[clojure-lsp.api :as lsp-api])
+(require '[clojure.java.io :as io])
+
+;; Analyze the project (caches results)
+(lsp-api/analyze-project-and-deps! {:project-root (io/file ".")})
+
+;; Get all diagnostics
+(def issues (lsp-api/diagnostics {:project-root (io/file ".")}))
+
+;; Review issues
+(:result issues)
+;; => [{:range {:start {:line 10 :character 5}}
+;;      :message "Unused namespace: clojure.string"
+;;      :severity :warning
+;;      :code "clojure-lsp/unused-namespace"}
+;;     ...]
+
+;; Find where a function is used before refactoring
+(lsp-api/references {:from 'myapp.core/old-function})
+```
+
+**Take Action:**
+```clojure
+;; 1. Clean namespace forms (removes unused requires)
+(lsp-api/clean-ns! {:namespace '[myapp.core myapp.utils]})
+
+;; 2. Format code consistently
+(lsp-api/format! {:namespace '[myapp.core myapp.utils]})
+
+;; 3. Rename function safely across codebase
+(lsp-api/rename! {:from 'myapp.core/old-function
+                  :to 'myapp.core/new-function})
+```
+
+**Verify Output:**
+```clojure
+;; 1. Check diagnostics again
+(def new-issues (lsp-api/diagnostics {:namespace '[myapp.core]}))
+(count (:result new-issues))
+;; => 0 (all issues resolved)
+
+;; 2. Verify rename worked
+(lsp-api/references {:from 'myapp.core/new-function})
+;; => All references updated
+
+;; 3. Test runtime behavior
+(require 'myapp.core :reload)
+(myapp.core/new-function test-data)
+;; => Still works as expected
+```
+
+## Tooling Options
+
+### Available Tools for Code Analysis
+
+Agents have access to multiple complementary tools for understanding and modifying Clojure code:
+
+**clojure-lsp API** - Static analysis and refactoring:
+- `clojure-lsp.api/diagnostics` - Find all linting issues and warnings
+- `clojure-lsp.api/references` - Find where symbols are used
+- `clojure-lsp.api/clean-ns!` - Clean and organize namespace forms
+- `clojure-lsp.api/format!` - Format code consistently
+- `clojure-lsp.api/rename!` - Rename symbols safely across codebase
+- `clojure-lsp.api/dump` - Get project structure and dependency graph
+
+**clj-mcp.repl-tools** - Interactive exploration:
+- `list-ns` - Discover available namespaces
+- `list-vars` - See all functions in a namespace
+- `doc-symbol` - Get function documentation
+- `source-symbol` - View source code
+- `find-symbols` - Search for symbols by pattern
+
+**File operations**:
+- `clojure-mcp_read_file` - Read with collapsed view and pattern filtering
+- `clojure_edit` - Edit top-level forms structurally
+- `clojure_edit_replace_sexp` - Replace expressions precisely
+- `clojure_eval` - Test code in the REPL
+
+### When to Use clojure-lsp vs REPL Tools
+
+**Use clojure-lsp when you need:**
+- Project-wide diagnostics (find all issues at once)
+- Cross-reference analysis (where is this function used?)
+- Batch operations (clean/format multiple files)
+- Safe refactoring (rename with confidence)
+- Static analysis (without loading code)
+
+**Use REPL tools when you need:**
+- Runtime exploration (what's loaded right now?)
+- Interactive testing (does this work?)
+- Documentation lookup (how do I use this?)
+- Dynamic behavior (what does this do with real data?)
+
+**Example: Finding Issues**
+```clojure
+;; Static analysis - find potential problems without loading code
+(require '[clojure-lsp.api :as lsp-api])
+(lsp-api/diagnostics {:namespace '[my-project.core]})
+;; => All linting issues, unused vars, wrong arities
+
+;; Runtime verification - test if code actually works
+(require 'my-project.core :reload)
+(my-project.core/some-function test-data)
+;; => Actual behavior with real data
+```
+
+**Example: Understanding Code**
+```clojure
+;; Static - see where a function is called
+(lsp-api/references {:from 'my-project.core/handle-request})
+;; => All places this function is referenced
+
+;; Runtime - understand what it does
+(clj-mcp.repl-tools/doc-symbol 'my-project.core/handle-request)
+(clj-mcp.repl-tools/source-symbol 'my-project.core/handle-request)
+(my-project.core/handle-request sample-data)  ; Test it
+```
+
 ## When to Use Each Approach
 
 ### Reading Files
 
-**Use `clojure-mcp_read_file` when:**
+#### Use `clojure-mcp_read_file` when:
+
 - Reading Clojure code (`.clj`, `.cljs`, `.cljc`)
 - You want collapsed view (function signatures only)
 - You need to see structure before details
 - Use `name_pattern` to expand specific functions
 - Use `content_pattern` to find functions containing specific code
 
-**Use `bash` with `cat` when:**
-- Reading non-Clojure files (`.edn`, `.txt`, `.md`)
-- You need exact file contents
-- Working with configuration files
+#### Use `read_file` to read files
 
 ### Making Changes
 
 **Use `clojure_edit` when:**
+
 - Working with Clojure code
 - Editing/inserting/replacing top-level forms
 - Adding functions, updating namespace declarations
 - Most reliable for structural changes
 
 **Use `clojure_edit_replace_sexp` when:**
+
 - Making targeted expression-level changes
 - Replacing specific expressions within functions
 - Changing let bindings, function calls, literals
 
 **Use `file_edit` when:**
+
 - Editing non-Clojure files
 - Simple text replacements
 - Configuration file changes
@@ -386,6 +526,7 @@ Following this pattern ensures:
 ## Best Practices
 
 **DO:**
+
 - Always reload namespace with `:reload` before testing changes
 - Test with multiple inputs, including edge cases (nil, empty, invalid)
 - Show your work - explain what you're doing at each step
@@ -395,8 +536,13 @@ Following this pattern ensures:
 - Use collapsed view to scan files efficiently
 - Start with simple test cases, then try edge cases
 - Check for similar existing functions before adding new ones
+- Use `lsp-api/diagnostics` to catch issues before manual testing
+- Use `lsp-api/references` to understand impact before refactoring
+- Use `lsp-api/clean-ns!` to organize namespaces consistently
+- Combine static analysis (clojure-lsp) with runtime testing (REPL)
 
 **DON'T:**
+
 - Make changes without reading the code first
 - Skip verification after making changes
 - Assume code works without testing it
@@ -405,12 +551,15 @@ Following this pattern ensures:
 - Ignore errors or exceptions
 - Write code without understanding the existing structure
 - Use generic variable names without checking project conventions
+- Rename symbols manually when `lsp-api/rename!` can do it safely
+- Skip checking diagnostics when modifying unfamiliar code
 
 ## Common Issues
 
 ### Issue: "Unable to Resolve Symbol" After Editing
 
 **Symptoms:**
+
 ```clojure
 (require 'myapp.core)
 (myapp.core/new-fn args)
@@ -418,6 +567,7 @@ Following this pattern ensures:
 ```
 
 **Solution:**
+
 ```clojure
 ;; You forgot to reload after editing
 (require 'myapp.core :reload)
@@ -430,11 +580,13 @@ Following this pattern ensures:
 ### Issue: Changes Don't Seem to Take Effect
 
 **Symptoms:**
+
 - Edit a function
 - Test it
 - Still seeing old behavior
 
 **Solution:**
+
 ```clojure
 ;; 1. Force reload
 (require 'myapp.core :reload-all)
@@ -449,10 +601,12 @@ Following this pattern ensures:
 ### Issue: Tests Fail After Refactoring
 
 **Symptoms:**
+
 - Refactored code looks correct
 - Tests fail with unexpected results
 
 **Solution:**
+
 ```clojure
 ;; 1. Reload test namespace too
 (require 'myapp.core-test :reload)
@@ -468,10 +622,12 @@ Following this pattern ensures:
 ### Issue: Can't Find the Right Function
 
 **Symptoms:**
+
 - Large codebase
 - Don't know where functionality lives
 
 **Solution:**
+
 ```clojure
 ;; 1. Search for keywords in code
 ;; Use clojure-mcp_grep with pattern
@@ -491,6 +647,7 @@ Following this pattern ensures:
 ### When to Ask for Help
 
 **Ask the user when:**
+
 - Requirements are ambiguous or unclear
 - Multiple valid approaches exist and you need to pick one
 - You encounter an error you can't resolve
@@ -498,6 +655,7 @@ Following this pattern ensures:
 - You need to make a decision about architecture or design
 
 **Don't ask when:**
+
 - You can look up information in the codebase
 - You can test something in the REPL
 - Standard Clojure patterns apply
@@ -508,6 +666,7 @@ Following this pattern ensures:
 **When you encounter an error:**
 
 1. **Show the error:**
+
 ```clojure
 ;; I tried to test the function:
 (myapp.core/process-data {:id 1})
@@ -518,12 +677,14 @@ Following this pattern ensures:
 ```
 
 2. **Explain what you think is wrong:**
+
 ```
 It looks like the function expects :user-id but receives :id.
 The error happens when it tries to call (.getId user) on nil.
 ```
 
 3. **Propose a solution:**
+
 ```
 I can fix this by:
 1. Renaming the key from :id to :user-id, or
@@ -563,14 +724,19 @@ Follow the **Gather → Action → Verify** loop for every task:
 1. **Gather Context**
    - Read files with `clojure-mcp_read_file`
    - Explore with `clj-mcp.repl-tools`
+   - Check diagnostics with `lsp-api/diagnostics`
+   - Find references with `lsp-api/references`
    - Ask clarifying questions
 
 2. **Take Action**
    - Edit with `clojure_edit` or `clojure_edit_replace_sexp`
+   - Use `lsp-api/clean-ns!` and `lsp-api/format!` for cleanup
+   - Use `lsp-api/rename!` for safe refactoring
    - Make focused, incremental changes
    - One thing at a time
 
 3. **Verify Output**
+   - Check diagnostics with `lsp-api/diagnostics`
    - Reload with `(require 'ns :reload)`
    - Test with `clojure_eval`
    - Check edge cases
@@ -578,6 +744,7 @@ Follow the **Gather → Action → Verify** loop for every task:
 
 **Remember:**
 - Read before you write
+- Use static analysis (clojure-lsp) + runtime testing (REPL)
 - Test after you edit
 - Communicate clearly
 - Ask when unsure
@@ -587,6 +754,7 @@ This pattern ensures reliable, high-quality code changes that work the first tim
 
 ## Resources
 
-- [Clojure REPL Skill](../language/clojure_repl.md) - Detailed REPL workflow
-- [Clojure Eval Skill](../clojure_mcp/clojure_eval.md) - Using clojure_eval tool
+- [Clojure REPL Skill](../language/clojure_repl.md) - Detailed REPL workflow and interactive exploration
+- [Clojure Eval Skill](../clojure_mcp/clojure_eval.md) - Using clojure_eval tool for testing
+- [Clojure LSP API Skill](../tooling/clojure_lsp_api.md) - Static analysis, refactoring, and code quality tools
 - [Agent Guide](../../AGENTS.md) - Full agent development guide

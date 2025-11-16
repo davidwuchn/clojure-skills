@@ -279,6 +279,86 @@
    :task (do
            (apply clojure (into ["-M:jvm-base:main"] *command-line-args*)))}
 
+  compile
+  {:doc "Compile main Clojure namespace to generate classes"
+   :task (do
+           (info-msg "Compiling clojure-skills.main...")
+           (fs/create-dirs "classes")
+           (let [result (clojure {:continue true}
+                                 "-M"
+                                 "-e" "(compile 'clojure-skills.main)")]
+             (if (zero? (:exit result))
+               (success-msg "Compilation complete")
+               (do
+                 (error-msg "Compilation failed")
+                 (System/exit 1)))))}
+
+  uberjar
+  {:doc "Build uberjar (requires compile first)"
+   :task (do
+           (info-msg "Building uberjar...")
+           (fs/create-dirs "target")
+           (let [start (System/currentTimeMillis)
+                 result (clojure {:continue true}
+                                 "-M:jvm-base:uberdeps"
+                                 "--main-class" "clojure_skills.main")]
+             (if (zero? (:exit result))
+               (let [elapsed (- (System/currentTimeMillis) start)]
+                 (success-msg (format "Uberjar built in %.2fs: target/clojure-skills.jar"
+                                      (/ elapsed 1000.0)))
+                 (println)
+                 (println "To run via JVM: java -jar target/clojure-skills.jar <command>")
+                 (println "To build native: bb native"))
+               (do
+                 (error-msg "Uberjar build failed")
+                 (System/exit 1)))))}
+
+  native
+  {:doc "Build native binary with GraalVM (requires GraalVM with native-image)"
+   :task (do
+           (info-msg "Building native binary with GraalVM...")
+
+           ;; Check for native-image
+           (let [check-result (shell {:continue true :out :string} "which native-image")]
+             (when-not (zero? (:exit check-result))
+               (error-msg "native-image not found!")
+               (println)
+               (println "Install GraalVM with native-image:")
+               (println "  1. Install GraalVM: sdk install java 25.0.1-graal")
+               (println "  2. Use it: sdk use java 25.0.1-graal")
+               (println "  3. Install native-image: gu install native-image")
+               (System/exit 1)))
+
+           ;; Build native image
+           (info-msg "Compiling native image (this may take several minutes)...")
+           (let [start (System/currentTimeMillis)
+                 result (apply shell {:continue true}
+                               ["native-image"
+                                "--no-fallback"
+                                "--initialize-at-build-time"
+                                "--report-unsupported-elements-at-runtime"
+                                "-jar" "target/clojure-skills.jar"
+                                "-H:Name=target/clojure-skills"])]
+             (if (zero? (:exit result))
+               (let [elapsed (- (System/currentTimeMillis) start)]
+                 (success-msg (format "Native binary built in %.2fs: target/clojure-skills"
+                                      (/ elapsed 1000.0)))
+                 (println)
+                 (println "Test the binary:")
+                 (println "  ./target/clojure-skills stats"))
+               (do
+                 (error-msg "Native compilation failed")
+                 (System/exit 1)))))}
+
+  build-cli
+  {:doc "Complete build: compile -> uberjar -> native binary"
+   :task (do
+           (run 'clean)
+           (run 'compile)
+           (run 'uberjar)
+           (run 'native)
+           (success-msg "Build complete! Native binary at: target/clojure-skills"))}
+
   outdated
   {:doc "Check for outdated dependencies"
    :task (do

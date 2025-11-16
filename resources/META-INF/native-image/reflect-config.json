@@ -1,0 +1,21 @@
+[
+  {
+    "name": "java.lang.reflect.AccessibleObject",
+    "methods": [{"name": "canAccess"}]
+  },
+  {
+    "name": "java.sql.DriverManager"
+  },
+  {
+    "name": "org.sqlite.JDBC",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []}
+    ]
+  },
+  {
+    "name": "org.sqlite.SQLiteConnection"
+  },
+  {
+    "name": "org.sqlite.jdbc4.JDBC4Connection"
+  }
+]

@@ -73,7 +73,7 @@
                         "--port" "7889"]}
 
            :main
-           {:main-opts ["-m" "dm.main"]}
+           {:main-opts ["-m" "clojure-skills.main"]}
 
            :lint
            {:extra-deps {clj-kondo/clj-kondo {:mvn/version "2022.09.08"}}}
