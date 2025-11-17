@@ -7,10 +7,10 @@
 
 (defn create-plan
   "Create a new implementation plan.
-   
+
    Required keys in plan-map:
    - :name - Plan name (required)
-   
+
    Optional keys:
    - :title - Plan title
    - :description - Plan description
@@ -26,7 +26,7 @@
 
     (jdbc/execute-one!
       db
-      ["INSERT INTO implementation_plans 
+      ["INSERT INTO implementation_plans
        (name, title, description, content, status, created_by, assigned_to)
        VALUES (?, ?, ?, ?, ?, ?, ?)
        RETURNING *"
@@ -53,7 +53,7 @@
 
 (defn list-plans
   "List implementation plans with optional filtering and pagination.
-   
+
    Options:
    - :status - Filter by status
    - :created_by - Filter by creator
@@ -100,7 +100,7 @@
 
 (defn search-plans
   "Search implementation plans using FTS5 full-text search.
-   
+
    Options:
    - :max-results - Maximum number of results (default: 50)"
   [db query & {:keys [max-results] :or {max-results 50}}]
@@ -121,7 +121,7 @@
   [db id]
   (jdbc/execute-one!
     db
-    ["UPDATE implementation_plans 
+    ["UPDATE implementation_plans
      SET status = 'completed', completed_at = datetime('now'), updated_at = datetime('now')
      WHERE id = ?
      RETURNING *"
@@ -133,7 +133,7 @@
   [db id]
   (jdbc/execute-one!
     db
-    ["UPDATE implementation_plans 
+    ["UPDATE implementation_plans
      SET status = 'archived', updated_at = datetime('now')
      WHERE id = ?
      RETURNING *"
