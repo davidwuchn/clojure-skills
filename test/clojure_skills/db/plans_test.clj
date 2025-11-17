@@ -54,8 +54,8 @@
                          {:name ""}))) ; name too short
 
     (is (not (m/validate plans/create-plan-schema
-                         {:name "Valid"}
-                         :status "invalid-status")))) ; invalid status
+                         {:name "Valid"
+                          :status "invalid-status"})))) ; invalid status - fixed: was passing as separate args
 
   (testing "update-plan-schema validates correctly"
     (is (m/validate plans/update-plan-schema

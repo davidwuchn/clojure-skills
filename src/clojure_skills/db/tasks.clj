@@ -8,11 +8,11 @@
 
 (defn create-task-list
   "Create a new task list for an implementation plan.
-   
+
    Required keys in list-map:
    - :plan_id - Associated implementation plan ID
    - :name - Task list name
-   
+
    Optional keys:
    - :description - Task list description
    - :position - Position/order in the plan"
@@ -95,11 +95,11 @@
 
 (defn create-task
   "Create a new task in a task list.
-   
+
    Required keys in task-map:
    - :list_id - Associated task list ID
    - :name - Task name
-   
+
    Optional keys:
    - :description - Task description
    - :position - Position/order in the list

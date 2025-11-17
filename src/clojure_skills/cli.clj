@@ -5,6 +5,7 @@
    [cli-matic.core :as cli]
    [clj-commons.format.exceptions :as ex]
    [clj-commons.format.table :as table]
+   [clojure-skills.cli.validation :as v]
    [clojure-skills.config :as config]
    [clojure-skills.db.core :as db]
    [clojure-skills.db.migrate :as migrate]
@@ -276,18 +277,22 @@
 (defn cmd-create-plan
   "Create a new implementation plan."
   [{:keys [name title description content status created-by assigned-to]}]
-  (validate-non-blank name "Plan name cannot be empty")
   (handle-command-errors
    "Create plan"
    (fn []
      (let [[_config db] (load-config-and-db)
-           plan-data (cond-> {:name name}
-                       title (assoc :title title)
-                       description (assoc :description description)
-                       content (assoc :content content)
-                       status (assoc :status status)
-                       created-by (assoc :created_by created-by)
-                       assigned-to (assoc :assigned_to assigned-to))
+           ;; Validate and coerce arguments
+           args (v/coerce-and-validate!
+                 v/create-plan-args-schema
+                 {:name name
+                  :title title
+                  :description description
+                  :content content
+                  :status status
+                  :created-by created-by
+                  :assigned-to assigned-to})
+           ;; Build plan data from validated args (remove nil values)
+           plan-data (into {} (filter (comp some? val) args))
            plan (plans/create-plan db plan-data)]
        (print-success (str "Created plan: " (:implementation_plans/name plan)))
        (println (str "Plan ID: " (:implementation_plans/id plan)))))))
@@ -299,10 +304,14 @@
    "List plans"
    (fn []
      (let [[_config db] (load-config-and-db)
-           plan-filters (cond-> {}
-                          status (assoc :status status)
-                          created-by (assoc :created_by created-by)
-                          assigned-to (assoc :assigned_to assigned-to))
+           ;; Validate arguments
+           args (v/coerce-and-validate!
+                 v/list-plans-args-schema
+                 {:status status
+                  :created-by created-by
+                  :assigned-to assigned-to})
+           ;; Build filters (remove nil values)
+           plan-filters (into {} (filter (comp some? val) args))
            plans-list (apply plans/list-plans db (flatten (seq plan-filters)))]
        (println)
        (println (bling/bling [:bold (format "Found %d plans" (count plans-list))]))
@@ -326,10 +335,15 @@
      "Show plan"
      (fn []
        (let [[_config db] (load-config-and-db)
-             plan (try
-                    (plans/get-plan-by-id db (Integer/parseInt plan-id-or-name))
-                    (catch NumberFormatException _
-                      (plans/get-plan-by-name db plan-id-or-name)))]
+             ;; Validate and coerce the argument - try as int first, fallback to string
+             args (v/coerce-and-validate!
+                   v/show-plan-args-schema
+                   {:plan-id-or-name plan-id-or-name})
+             plan-id-or-name-coerced (:plan-id-or-name args)
+             ;; Try to get by ID if integer, otherwise by name
+             plan (if (integer? plan-id-or-name-coerced)
+                    (plans/get-plan-by-id db plan-id-or-name-coerced)
+                    (plans/get-plan-by-name db plan-id-or-name-coerced))]
          (if plan
            (do
              (println)
@@ -377,14 +391,20 @@
      "Update plan"
      (fn []
        (let [[_config db] (load-config-and-db)
-             update-data (cond-> {}
-                           name (assoc :name name)
-                           title (assoc :title title)
-                           description (assoc :description description)
-                           content (assoc :content content)
-                           status (assoc :status status)
-                           assigned-to (assoc :assigned_to assigned-to))
-             plan (plans/update-plan db (Integer/parseInt plan-id) update-data)]
+             ;; Validate and coerce arguments
+             args (v/coerce-and-validate!
+                   v/update-plan-args-schema
+                   {:id plan-id
+                    :name name
+                    :title title
+                    :description description
+                    :content content
+                    :status status
+                    :assigned-to assigned-to})
+             ;; Extract ID and build update data (remove nil and :id)
+             plan-id-coerced (:id args)
+             update-data (into {} (filter (comp some? val) (dissoc args :id)))
+             plan (plans/update-plan db plan-id-coerced update-data)]
          (if plan
            (print-success (str "Updated plan: " (:implementation_plans/name plan)))
            (do
@@ -400,7 +420,10 @@
      "Complete plan"
      (fn []
        (let [[_config db] (load-config-and-db)
-             plan (plans/complete-plan db (Integer/parseInt plan-id))]
+             ;; Validate and coerce the ID
+             args (v/coerce-and-validate! v/complete-plan-args-schema {:id plan-id})
+             plan-id-coerced (:id args)
+             plan (plans/complete-plan db plan-id-coerced)]
          (if plan
            (print-success (str "Completed plan: " (:implementation_plans/name plan)))
            (do
@@ -417,11 +440,19 @@
      "Create task list"
      (fn []
        (let [[_config db] (load-config-and-db)
-             ;; position is already an Integer from cli-matic (type :int)
-             list-data (cond-> {:plan_id (Integer/parseInt plan-id)
-                                :name name}
-                         description (assoc :description description)
-                         position (assoc :position position))
+             ;; Validate and coerce arguments
+             args (v/coerce-and-validate!
+                   v/create-task-list-args-schema
+                   {:plan-id plan-id
+                    :name name
+                    :description description
+                    :position position})
+             ;; Build task list data (remove nil values, rename plan-id to plan_id)
+             list-data (-> args
+                           (dissoc :plan-id)
+                           (assoc :plan_id (:plan-id args))
+                           (->> (filter (comp some? val))
+                                (into {})))
              task-list (tasks/create-task-list db list-data)]
          (print-success (str "Created task list: " (:task_lists/name task-list)))
          (println (str "Task List ID: " (:task_lists/id task-list))))))))
@@ -436,12 +467,20 @@
      "Create task"
      (fn []
        (let [[_config db] (load-config-and-db)
-             ;; position is already an Integer from cli-matic (type :int)
-             task-data (cond-> {:list_id (Integer/parseInt list-id)
-                                :name name}
-                         description (assoc :description description)
-                         position (assoc :position position)
-                         assigned-to (assoc :assigned_to assigned-to))
+             ;; Validate and coerce arguments
+             args (v/coerce-and-validate!
+                   v/create-task-args-schema
+                   {:list-id list-id
+                    :name name
+                    :description description
+                    :position position
+                    :assigned-to assigned-to})
+             ;; Build task data (remove nil values, rename list-id to list_id)
+             task-data (-> args
+                           (dissoc :list-id)
+                           (assoc :list_id (:list-id args))
+                           (->> (filter (comp some? val))
+                                (into {})))
              task (tasks/create-task db task-data)]
          (print-success (str "Created task: " (:tasks/name task)))
          (println (str "Task ID: " (:tasks/id task))))))))
@@ -455,7 +494,10 @@
      "Complete task"
      (fn []
        (let [[_config db] (load-config-and-db)
-             task (tasks/complete-task db (Integer/parseInt task-id))]
+             ;; Validate and coerce the ID
+             args (v/coerce-and-validate! v/complete-task-args-schema {:id task-id})
+             task-id-coerced (:id args)
+             task (tasks/complete-task db task-id-coerced)]
          (if task
            (print-success (str "Completed task: " (:tasks/name task)))
            (do

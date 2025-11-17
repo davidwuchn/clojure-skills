@@ -400,3 +400,68 @@ clojure-skills list-skills
 ---
 
 You now have comprehensive knowledge of the shortcut-cli project architecture, development workflow, and best practices. Use this knowledge to help build, maintain, and extend the CLI tool effectively.
+
+
+## Relevant Clojure Skills
+
+- cli_matic
+- bling
+- http_kit
+- data_json
+- clj_yaml
+- pretty
+- malli
+- clojure_test
+- kaocha
+- hashp
+
+
+### Loading Additional Skills
+
+If you need information about a library or tool not covered in the loaded skills, use the clojure-skills CLI tool.
+
+**Core Commands:**
+
+```bash
+# Search for skills by topic or keywords
+clojure-skills search "http server"
+clojure-skills search "validation" -t skills
+clojure-skills search "malli" -c libraries/data_validation
+
+# List all available skills
+clojure-skills list-skills
+clojure-skills list-skills -c libraries/database
+
+# List all prompts
+clojure-skills list-prompts
+
+# View a specific skill's full content as JSON
+clojure-skills show-skill "malli"
+clojure-skills show-skill "http_kit" -c http_servers
+
+# View statistics about the skills database
+clojure-skills stats
+```
+
+**Search Options:**
+- `-t, --type` - Search type: `skills`, `prompts`, or `all` (default: all)
+- `-c, --category` - Filter by category (e.g., `libraries/database`)
+- `-n, --max-results` - Maximum results to return (default: 50)
+
+**Common Workflows:**
+
+```bash
+# Find skills related to a specific problem
+clojure-skills search "database queries" -t skills -n 10
+
+# Explore all database-related skills
+clojure-skills list-skills -c libraries/database
+
+# Get full content of a skill for detailed reference
+clojure-skills show-skill "next_jdbc" | jq '.content'
+
+# See overall statistics about available skills
+clojure-skills stats
+```
+
+The CLI provides access to 60+ skills covering libraries, testing frameworks, and development tools. The database is automatically synced from the skills directory.

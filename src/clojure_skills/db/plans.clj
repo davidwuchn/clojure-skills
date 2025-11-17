@@ -35,36 +35,36 @@
   "Schema for creating a new implementation plan."
   [:map
    [:name [:string {:min 1 :max 255}]]
-   [:title {:optional true} [:string {:max 500}]]
-   [:description {:optional true} [:string {:max 2000}]]
-   [:content {:optional true} :string]
-   [:status {:optional true} status-schema]
-   [:created_by {:optional true} [:string {:max 255}]]
-   [:assigned_to {:optional true} [:string {:max 255}]]])
+   [:title {:optional true} [:maybe [:string {:max 500}]]]
+   [:description {:optional true} [:maybe [:string {:max 2000}]]]
+   [:content {:optional true} [:maybe :string]]
+   [:status {:optional true} [:maybe status-schema]]
+   [:created_by {:optional true} [:maybe [:string {:max 255}]]]
+   [:assigned_to {:optional true} [:maybe [:string {:max 255}]]]])
 
 (def update-plan-schema
   "Schema for updating an implementation plan."
   [:map
-   [:name {:optional true} [:string {:min 1 :max 255}]]
-   [:title {:optional true} [:string {:max 500}]]
-   [:description {:optional true} [:string {:max 2000}]]
-   [:content {:optional true} :string]
-   [:status {:optional true} status-schema]
-   [:assigned_to {:optional true} [:string {:max 255}]]])
+   [:name {:optional true} [:maybe [:string {:min 1 :max 255}]]]
+   [:title {:optional true} [:maybe [:string {:max 500}]]]
+   [:description {:optional true} [:maybe [:string {:max 2000}]]]
+   [:content {:optional true} [:maybe :string]]
+   [:status {:optional true} [:maybe status-schema]]
+   [:assigned_to {:optional true} [:maybe [:string {:max 255}]]]])
 
 (def list-plans-options-schema
   "Schema for list-plans options."
   [:map
-   [:status {:optional true} status-schema]
-   [:created_by {:optional true} [:string {:max 255}]]
-   [:assigned_to {:optional true} [:string {:max 255}]]
-   [:limit {:optional true} [:int {:min 1 :max 1000}]]
-   [:offset {:optional true} [:int {:min 0}]]])
+   [:status {:optional true} [:maybe status-schema]]
+   [:created_by {:optional true} [:maybe [:string {:max 255}]]]
+   [:assigned_to {:optional true} [:maybe [:string {:max 255}]]]
+   [:limit {:optional true} [:maybe [:int {:min 1 :max 1000}]]]
+   [:offset {:optional true} [:maybe [:int {:min 0}]]]])
 
 (def search-options-schema
   "Schema for search-plans options."
   [:map
-   [:max-results {:optional true} [:int {:min 1 :max 1000}]]])
+   [:max-results {:optional true} [:maybe [:int {:min 1 :max 1000}]]]])
 
 ;; ------------------------------------------------------------
 ;; Validation Helpers
@@ -213,7 +213,8 @@
   [db & {:keys [status created_by assigned_to limit offset]
          :or {limit 100 offset 0}
          :as opts}]
-  (validate! list-plans-options-schema opts)
+  ;; opts can be nil when no keyword arguments are provided, so default to empty map
+  (validate! list-plans-options-schema (or opts {}))
 
   (try
     (let [query (-> (h/select :*)
@@ -341,7 +342,8 @@
                :or {max-results 50}
                :as opts}]
   (validate! [:string {:min 1}] query)
-  (validate! search-options-schema opts)
+  ;; opts can be nil when no keyword arguments are provided, so default to empty map
+  (validate! search-options-schema (or opts {}))
 
   (try
     ;; Note: HoneySQL doesn't have great FTS5 support, using raw SQL for MATCH clause
