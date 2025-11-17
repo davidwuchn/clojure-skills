@@ -598,28 +598,29 @@
          :version "0.1.0"}
 
    :commands
-   [{:command "init"
-     :description "Initialize the database"
+   [;; Database commands
+    {:command "init"
+     :description "Initialize the database with required schema"
      :runs cmd-init}
 
     {:command "sync"
-     :description "Sync skills and prompts to database"
+     :description "Sync skills and prompts from filesystem to database"
      :runs cmd-sync}
 
     {:command "search"
-     :description "Search skills and prompts"
+     :description "Search skills and prompts using FTS5 full-text search"
      :opts [{:option "category"
              :short "c"
-             :as "Filter by category"
+             :as "Filter by category (e.g., 'libraries/database')"
              :type :string}
             {:option "type"
              :short "t"
-             :as "Search type (skills, prompts, or all)"
+             :as "Filter by type: 'skills', 'prompts', or 'all'"
              :type :string
              :default "all"}
             {:option "max-results"
              :short "n"
-             :as "Maximum number of results"
+             :as "Maximum results to return"
              :type :int
              :default 50}]
      :args [{:arg "query"
@@ -629,7 +630,7 @@
      :runs cmd-search}
 
     {:command "list-skills"
-     :description "List all skills"
+     :description "List all skills with metadata"
      :opts [{:option "category"
              :short "c"
              :as "Filter by category"
@@ -637,7 +638,7 @@
      :runs cmd-list-skills}
 
     {:command "list-prompts"
-     :description "List all prompts"
+     :description "List all prompts with metadata"
      :runs cmd-list-prompts}
 
     {:command "stats"
@@ -645,16 +646,16 @@
      :runs cmd-stats}
 
     {:command "reset-db"
-     :description "Reset database (WARNING: destructive)"
+     :description "Reset database (WARNING: destructive - deletes all data)"
      :opts [{:option "force"
              :short "f"
-             :as "Force reset without confirmation"
+             :as "Skip confirmation"
              :type :with-flag
              :default false}]
      :runs cmd-reset-db}
 
     {:command "show-skill"
-     :description "Show full content of a skill as JSON"
+     :description "Display skill content as JSON"
      :opts [{:option "category"
              :short "c"
              :as "Filter by category"
@@ -665,11 +666,11 @@
              :required true}]
      :runs cmd-show-skill}
 
-    ;; Task tracking commands
+    ;; Task tracking - Plans
     {:command "create-plan"
      :description "Create a new implementation plan"
      :opts [{:option "name"
-             :as "Plan name"
+             :as "Unique plan identifier"
              :type :string
              :required true}
             {:option "title"
@@ -682,7 +683,7 @@
              :as "Plan content (markdown)"
              :type :string}
             {:option "status"
-             :as "Plan status (draft, in-progress, completed, archived)"
+             :as "Status: draft, in-progress, completed, archived"
              :type :string}
             {:option "created-by"
              :as "Creator identifier"
@@ -706,7 +707,7 @@
      :runs cmd-list-plans}
 
     {:command "show-plan"
-     :description "Show details of an implementation plan"
+     :description "Show detailed plan information"
      :args [{:arg "id-or-name"
              :as "Plan ID or name"
              :type :string
@@ -720,35 +721,36 @@
              :type :string
              :required true}]
      :opts [{:option "name"
-             :as "Plan name"
+             :as "New plan identifier"
              :type :string}
             {:option "title"
-             :as "Plan title"
+             :as "New title"
              :type :string}
             {:option "description"
-             :as "Plan description"
+             :as "New description"
              :type :string}
             {:option "content"
-             :as "Plan content (markdown)"
+             :as "New content"
              :type :string}
             {:option "status"
-             :as "Plan status (draft, in-progress, completed, archived)"
+             :as "New status"
              :type :string}
             {:option "assigned-to"
-             :as "Assignee identifier"
+             :as "New assignee"
              :type :string}]
      :runs cmd-update-plan}
 
     {:command "complete-plan"
-     :description "Mark an implementation plan as completed"
+     :description "Mark plan as completed"
      :args [{:arg "id"
              :as "Plan ID"
              :type :string
              :required true}]
      :runs cmd-complete-plan}
 
+    ;; Task tracking - Task Lists and Tasks
     {:command "create-task-list"
-     :description "Create a task list for an implementation plan"
+     :description "Create a task list within a plan"
      :args [{:arg "plan-id"
              :as "Plan ID"
              :type :string
@@ -758,10 +760,10 @@
              :type :string
              :required true}
             {:option "description"
-             :as "Task list description"
+             :as "Description"
              :type :string}
             {:option "position"
-             :as "Task list position"
+             :as "Display position"
              :type :int}]
      :runs cmd-create-task-list}
 
@@ -776,27 +778,27 @@
              :type :string
              :required true}
             {:option "description"
-             :as "Task description"
+             :as "Description"
              :type :string}
             {:option "position"
-             :as "Task position"
+             :as "Display position"
              :type :int}
             {:option "assigned-to"
-             :as "Assignee identifier"
+             :as "Assignee"
              :type :string}]
      :runs cmd-create-task}
 
     {:command "complete-task"
-     :description "Mark a task as completed"
+     :description "Mark task as completed"
      :args [{:arg "task-id"
              :as "Task ID"
              :type :string
              :required true}]
      :runs cmd-complete-task}
 
-    ;; Plan-skill association commands
+    ;; Plan-skill associations
     {:command "associate-skill"
-     :description "Associate a skill with an implementation plan"
+     :description "Associate a skill with a plan"
      :args [{:arg "plan-id"
              :as "Plan ID"
              :type :string
@@ -807,13 +809,13 @@
              :required true}]
      :opts [{:option "position"
              :short "p"
-             :as "Position in the skill list"
+             :as "Display position"
              :type :int
              :default 0}]
      :runs cmd-associate-skill}
 
     {:command "dissociate-skill"
-     :description "Dissociate a skill from an implementation plan"
+     :description "Remove skill association from a plan"
      :args [{:arg "plan-id"
              :as "Plan ID"
              :type :string
@@ -825,7 +827,7 @@
      :runs cmd-dissociate-skill}
 
     {:command "list-plan-skills"
-     :description "List all skills associated with an implementation plan"
+     :description "List skills associated with a plan"
      :args [{:arg "plan-id"
              :as "Plan ID"
              :type :string
