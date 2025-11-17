@@ -1,6 +1,7 @@
 (ns clojure-skills.main-test
-  (:require [clojure.test :as t]))
+  (:require [clojure.test :refer [deftest is testing]]
+            [clojure-skills.main :as main]))
 
-(t/deftest test-okay
-  (t/testing "testing"
-    (t/is (true? false))))
+(deftest test-main-function-exists
+  (testing "main namespace has -main function"
+    (is (fn? main/-main))))
