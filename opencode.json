@@ -12,7 +12,9 @@
         "write": true,
         "edit": true,
         "read": false,
-        "bash": true
+        "bash": true,
+        "todowrite": false,
+        "todoread": false
       },
       "permission": {
         "write": "ask",
@@ -28,7 +30,9 @@
         "write": true,
         "edit": true,
         "read": false,
-        "bash": true
+        "bash": true,
+        "todowrite": false,
+        "todoread": false
       },
       "permission": {
         "write": "ask",
@@ -43,7 +47,9 @@
         "write": true,
         "edit": true,
         "read": false,
-        "bash": true
+        "bash": true,
+        "todowrite": false,
+        "todoread": false
       },
       "permission": {
         "write": "ask",

@@ -1,342 +1,36 @@
 # Clojure Skills
 
-> **Making AI coding agents fluent in Clojure**
+A searchable knowledge base of Clojure development skills with a powerful CLI for finding, viewing, and managing reusable prompt fragments for AI coding agents.
 
-A comprehensive collection of reusable prompt fragments and teaching
-materials designed to transform general-purpose LLM coding agents into
-Clojure specialists. Whether you're using
-[OpenCode](https://opencode.ai/), Claude, or any other AI coding
-assistant, these skills provide the knowledge foundation needed for
-effective Clojure development.
-
-> **For LLM Agents:** See [AGENTS.md](AGENTS.md) for comprehensive
-> guidance on working with this repository.
+**Quick Links:**
+- [Installation](#installation) - Get started in 5 minutes
+- [CLI Usage](#cli-usage) - Search and explore 73+ skills
+- [For LLM Agents](AGENTS.md) - Comprehensive agent guide
+- [Task Tracking](#task-tracking) - Manage complex implementations
 
 ---
 
-## Why This Project Exists
+## What Is This?
 
-### The Problem
+**Clojure Skills** is a curated collection of 73+ skills covering Clojure development, organized in a SQLite database with full-text search. Each skill is a focused markdown document teaching a specific topic:
 
-Modern AI coding agents are incredibly capable, but they face challenges when working with Clojure:
+- **Language fundamentals** - Clojure intro, REPL-driven development
+- **Libraries** (50+) - Malli, next.jdbc, http-kit, Ring, Kaocha, and more
+- **Testing frameworks** - Kaocha, test.check, scope-capture
+- **Development tools** - clj-kondo, CIDER, nRepl, Babashka
 
-- **Functional paradigm differences** - Clojure's approach differs fundamentally from mainstream languages
-- **REPL-driven development** - Interactive workflows that aren't obvious from code alone
-- **Rich ecosystem knowledge** - 30+ commonly-used libraries, each with unique patterns
-- **Context window limits** - Can't load entire documentation every time
-- **Vendor lock-in concerns** - Need portable knowledge that works across tools
+Skills can be searched, viewed individually, or composed together into complete teaching prompts for AI agents.
 
-### The Solution
-
-This project provides **modular, composable teaching materials** that you can:
-
-1. **Mix and match** - Combine only the skills you need for each task
-2. **Compress intelligently** - Use LLMLingua to reduce token usage by 10-20x
-3. **Use anywhere** - Works with OpenCode, Claude, or any prompt-based system
-4. **Extend easily** - Add new libraries and patterns as your needs evolve
-5. **Share openly** - Vendor-neutral format anyone can use
-
-**Think of it as:** A modular curriculum for teaching AI agents
-Clojure, where you assemble custom lesson plans for specific tasks.
+**Core features:**
+- Full-text search with SQLite FTS5
+- 73 skills across 28 categories
+- CLI tool for instant access
+- Task tracking for complex implementations
+- Build system for composing custom prompts
 
 ---
 
-## What's Inside
-
-### Skills: Modular Knowledge Units
-
-Skills are focused markdown documents teaching specific topics. Each
-skill follows the [Anthropic Skills
-API](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/skills)
-format and includes:
-
-- **YAML frontmatter** - Name, description, when to use it
-- **Quick Start** - Get productive in 5-10 minutes
-- **Core Concepts** - Essential understanding
-- **Practical Examples** - Real code you can run
-- **Best Practices** - What to do (and avoid)
-- **Troubleshooting** - Common issues and solutions
-
-**Organized by category:**
-
-```
-skills/
-├── language/              # Clojure fundamentals
-│   ├── clojure_intro.md      → Immutability, functions, data structures
-│   └── clojure_repl.md       → REPL-driven development workflow
-├── clojure_mcp/           # Tool integration
-│   └── clojure_eval.md       → Using the evaluation tool effectively
-├── libraries/             # 30+ library guides
-│   ├── data_validation/
-│   │   └── malli.md          → Schema validation with Malli
-│   ├── database/
-│   │   ├── next_jdbc.md      → JDBC database access
-│   │   ├── honeysql.md       → SQL as Clojure data structures
-│   │   └── ragtime.md        → Database migrations
-│   ├── http_servers/
-│   │   ├── http_kit.md       → Async HTTP server
-│   │   └── ring.md           → Web application abstractions
-│   └── [27 more categories...]
-├── testing/               # Test frameworks
-│   ├── kaocha.md             → Modern test runner
-│   └── test_check.md         → Property-based testing
-└── tooling/               # Development tools
-    ├── cider.md              → Emacs integration
-    ├── clj_kondo.md          → Linting
-    └── rewrite_clj.md        → Code transformation
-```
-
-**Example skill structure** (from `malli.md`):
-
-```markdown
----
-name: malli_schema_validation
-description: |
-  Validate data structures using Malli. Use when validating API requests,
-  defining data contracts, or when the user mentions schemas or validation.
----
-
-# Malli Data Validation
-
-## Quick Start
-[Get working example in 2 minutes]
-
-## Core Concepts
-[Essential understanding]
-
-## Common Workflows
-[3-5 practical patterns with examples]
-
-## Best Practices
-[Do's and don'ts]
-
-## Troubleshooting
-[Common issues and solutions]
-```
-
-Each skill is **self-contained** - you can use it independently or combine it with others.
-
-### Prompts: Composed Teaching Materials
-
-Prompts combine multiple skills into complete "lesson plans" for specific tasks. They use YAML frontmatter to specify which skills to include:
-
-```yaml
----
-title: Clojure Build Agent
-author: Ivan Willig
-date: 2025-11-06
-sections:
-  - skills/language/clojure_intro.md
-  - skills/language/clojure_repl.md
-  - skills/clojure_mcp/clojure_eval.md
-  - skills/libraries/data_validation/malli.md
-  - skills/http_servers/http_kit.md
-  - skills/testing/kaocha.md
----
-
-# You are a Clojure Build Specialist
-
-You help developers build production-ready Clojure applications...
-[Agent-specific introduction and context]
-```
-
-**Build system** (using pandoc):
-
-```bash
-# Reads: prompts/clojure_skill_builder.md (YAML + intro)
-# Combines: All skills listed in sections
-# Outputs: _build/clojure_skill_builder.md (single combined prompt)
-
-make _build/clojure_skill_builder.md
-```
-
-**Result:** A comprehensive teaching document containing exactly the knowledge needed for your task.
-
----
-
-## How the Build System Works
-
-### The Process
-
-```
-1. Write/Select Skills          → skills/libraries/malli.md (750 lines)
-   (Modular knowledge)             skills/http_servers/ring.md (680 lines)
-                                   skills/testing/kaocha.md (420 lines)
-
-2. Define Prompt Template       → prompts/my_agent.md
-   (YAML + sections list)          ---
-                                   sections:
-                                     - skills/libraries/malli.md
-                                     - skills/http_servers/ring.md
-                                     - skills/testing/kaocha.md
-                                   ---
-
-3. Build Combined Prompt        → _build/my_agent.md (2,000 lines)
-   (pandoc combines sections)
-
-4. [Optional] Compress          → _build/my_agent.compressed.md (200 lines)
-   (LLMLingua 10x compression)     ↓ 90% token reduction
-                                   ↓ Preserves semantic meaning
-```
-
-### Why This Approach?
-
-**Modularity**: Write each skill once, reuse in multiple prompts
-
-```bash
-# Same skills, different combinations
-prompts/web_api.md        → malli + ring + http-kit + honeysql
-prompts/data_pipeline.md  → malli + next-jdbc + honeysql
-prompts/testing.md        → malli + kaocha + test-check
-```
-
-**Maintainability**: Update one skill, all prompts using it improve
-
-```bash
-# Fix bug in malli.md
-vim skills/libraries/data_validation/malli.md
-
-# Rebuild all prompts that use it
-make
-```
-
-**Flexibility**: Create task-specific agents without rewriting documentation
-
-```bash
-# Quick web API agent
-cat > prompts/quick_api.md <<EOF
----
-sections:
-  - skills/language/clojure_intro.md
-  - skills/libraries/http_kit.md
----
-You build REST APIs quickly.
-EOF
-
-make _build/quick_api.md
-```
-
----
-
-## Prompt Compression: Fitting More in Less Space
-
-### The Challenge
-
-- **Token limits** - Most LLMs have context window constraints (32k-200k tokens)
-- **Token costs** - Larger prompts = higher API costs
-- **Performance** - Smaller contexts = faster responses
-- **Real example**: Combined skills can reach 10,000+ lines (50,000+ tokens)
-
-### The Solution: LLMLingua
-
-Using Microsoft Research's **LLMLingua** technique, we compress prompts by **10-20x** while preserving semantic meaning:
-
-```
-Original:  2,366 tokens  →  Compressed:  117 tokens  (20x compression)
-Original: 50,000 tokens  →  Compressed: 5,000 tokens (10x compression)
-
-✓ Code examples preserved
-✓ Key concepts maintained
-✓ Context understood by LLM
-✗ Human readability reduced
-```
-
-**How it works:**
-
-1. Small BERT-based model analyzes text importance
-2. Removes unimportant tokens (articles, fillers, redundancy)
-3. Preserves code, keywords, and semantic structure
-4. Output is LLM-readable (but human-unreadable)
-
-**Think of it as:** Compression for LLMs, not humans - like how JPEG compression works for images.
-
-### Quick Start
-
-**See [QUICKSTART_COMPRESSION.md](QUICKSTART_COMPRESSION.md) for detailed 3-step guide.**
-
-```bash
-# 1. One-time setup (downloads ~500MB model)
-bb setup-python
-
-# 2. Build and compress in one step (recommended)
-bb build-compressed clojure_skill_builder --ratio 10
-
-# 3. Or compress existing prompts
-bb compress _build/clojure_skill_builder.md --ratio 10
-```
-
-### Compression Strategies
-
-**Available commands:**
-
-```bash
-# Setup Python environment (pipenv)
-bb setup-python
-
-# Build + compress combined
-bb build-compressed <template-name> [options]
-bb build-compressed clojure_skill_builder --ratio 10
-
-# Compress existing files
-bb compress <file> [options]
-bb compress _build/clojure_skill_builder.md --ratio 5
-
-# Compress individual skills
-bb compress-skill <skill-file> [options]
-bb compress-skill skills/libraries/data_validation/malli.md --ratio 10
-```
-
-**Compression ratios:**
-
-| Ratio | Use Case | Token Reduction | Quality Impact |
-|-------|----------|-----------------|----------------|
-| 3-5x | Complex topics, teaching fundamentals | 67-80% | Minimal - nearly all detail preserved |
-| 5-10x | Balanced approach, most use cases | 80-90% | Low - key concepts clear |
-| 10-20x | Aggressive saving, reference-style | 90-95% | Moderate - semantic meaning intact |
-
-**Example compression options:**
-
-```bash
-# Moderate compression (good default)
-bb build-compressed clojure_skill_builder --ratio 5
-
-# Target specific token count
-bb compress _build/my_prompt.md --target-token 5000
-
-# Different ratios for different sections
-bb compress _build/my_prompt.md \
-  --ratio 5 \
-  --instruction-ratio 3 \
-  --question-ratio 10
-```
-
-### When to Use Compression
-
-**✓ Use compression when:**
-
-- Working with large combined skill sets (1000+ lines / 5000+ tokens)
-- Token costs or limits are a concern
-- LLM is the only consumer (not humans)
-- Semantic meaning matters more than exact wording
-- Building reference prompts for autonomous agents
-
-**✗ Skip compression when:**
-
-- Humans need to read/edit the prompt
-- Teaching fundamental concepts (keep examples clear)
-- Prompts are already small (<500 tokens)
-- Exact code examples are critical
-- Interactive debugging/iteration is needed
-
-### Complete Documentation
-
-- **[COMPRESSION.md](COMPRESSION.md)** - Comprehensive guide with strategies, examples, and integration patterns
-- **[QUICKSTART_COMPRESSION.md](QUICKSTART_COMPRESSION.md)** - Get started in 3 steps
-- **[scripts/README.md](scripts/README.md)** - Technical details of the compression script
-
----
-
-## Getting Started
+## Installation
 
 ### Prerequisites
 
@@ -344,132 +38,383 @@ bb compress _build/my_prompt.md \
 
 ```bash
 # macOS (Homebrew)
-brew bundle              # Installs all dependencies from Brewfile
+brew install clojure babashka pandoc yq typos-cli
 
-# Or install individually
-brew install clojure babashka pandoc jq just typos-cli
+# Or use the Brewfile
+brew bundle
 
 # Fedora/RHEL/CentOS
-sudo dnf install just pandoc jq
+sudo dnf install clojure java-latest-openjdk pandoc
 
 # Ubuntu/Debian
-sudo apt install pandoc jq
+sudo apt install clojure openjdk-21-jdk pandoc
 ```
 
-**Compression (optional):**
+**Note:** Babashka is optional but recommended for running build tasks. If you skip it, you can use `make` instead.
+
+### Build and Install CLI
 
 ```bash
-# Python 3.8+ with pipenv
-brew install pipenv      # macOS
-pip install pipenv       # Other systems
+# Clone repository
+git clone https://github.com/yourusername/clojure-skills.git
+cd clojure-skills
 
-# Then setup compression dependencies
-bb setup-python
+# Initialize the database
+clojure -M:main init
+
+# Sync skills to database (first time)
+clojure -M:main sync
+
+# Build native binary (recommended for speed)
+bb build-cli
+
+# Or create an alias to use directly
+alias clojure-skills='clojure -M:main'
 ```
 
-### Basic Workflow
+The native binary will be created at `target/clojure-skills` and can be moved to your PATH.
 
-**1. Explore existing skills:**
-
-```bash
-# See what's available
-ls skills/language/        # Clojure fundamentals
-ls skills/libraries/       # Library guides
-ls skills/testing/         # Test frameworks
-
-# Read a skill
-cat skills/libraries/data_validation/malli.md
-```
-
-**2. Create or modify a prompt template:**
+**Verify installation:**
 
 ```bash
-# Create new prompt
-cat > prompts/my_agent.md <<EOF
----
-title: My Clojure Agent
-sections:
-  - skills/language/clojure_intro.md
-  - skills/libraries/data_validation/malli.md
----
+clojure-skills stats
 
-# You are a data validation specialist
-...
-EOF
-```
-
-**3. Build the prompt:**
-
-```bash
-# Build uncompressed
-make _build/my_agent.md
-
-# Or build + compress
-bb build-compressed my_agent --ratio 10
-
-# View results
-ls _build/
-cat _build/my_agent.md
-cat _build/my_agent.compressed.md    # If compressed
-```
-
-**4. Use with your AI coding agent:**
-
-```bash
-# OpenCode
-opencode --system-prompt _build/my_agent.compressed.md
-
-# Or copy/paste into Claude, ChatGPT, etc.
-```
-
-### Common Tasks
-
-```bash
-# List all available tasks
-bb tasks
-
-# Build all prompts
-make
-
-# Run tests
-bb test
-
-# Check code quality
-bb lint                  # Lint with clj-kondo
-bb fmt                   # Format with cljstyle
-bb typos                 # Check spelling
-
-# Clean build artifacts
-bb clean
-make clean
-
-# Full CI pipeline
-bb ci
+# Should show:
+# - 73 skills
+# - 5 prompts
+# - 28 categories
+# - ~876KB total size
 ```
 
 ---
 
-## Development
+## CLI Usage
 
-### Creating New Skills
+The `clojure-skills` CLI is your primary interface for working with the skills database.
 
-**1. Choose the right category:**
+### Quick Start
 
 ```bash
+# Get help
+clojure-skills --help
+
+# Search for skills about a topic
+clojure-skills search "validation"
+
+# List all skills in a category
+clojure-skills list-skills -c libraries/database
+
+# View a skill's full content
+clojure-skills show-skill malli -c libraries/data_validation
+
+# Get database statistics
+clojure-skills stats
+```
+
+### Searching Skills
+
+**Basic search** - finds skills by content match:
+
+```bash
+# Search all skills and prompts
+clojure-skills search "http server"
+
+# Search only skills
+clojure-skills search "validation" -t skills
+
+# Search only prompts
+clojure-skills search "agent" -t prompts
+
+# Limit results
+clojure-skills search "database" -n 10
+```
+
+**Filter by category:**
+
+```bash
+# Search within a specific category
+clojure-skills search "query" -c libraries/database
+```
+
+**Example output:**
+
+```
+Searching for: validation
+
+Found 5 skills
+
+┌─────────┬─────────────────────────┬──────┬──────┐
+│   Name  │         Category        │ Size │Tokens│
+├─────────┼─────────────────────────┼──────┼──────┤
+│    malli│libraries/data_validation│10.8KB│2772  │
+│     spec│libraries/data_validation│20.7KB│5291  │
+│   reitit│       libraries/rest_api│ 2.6KB│658   │
+│    buddy│       libraries/security│20.5KB│5257  │
+│cli_matic│            libraries/cli│ 3.0KB│760   │
+└─────────┴─────────────────────────┴──────┴──────┘
+```
+
+### Listing Skills
+
+**List all skills:**
+
+```bash
+clojure-skills list-skills
+```
+
+**List by category:**
+
+```bash
+# Database skills
+clojure-skills list-skills -c libraries/database
+
+# Testing skills
+clojure-skills list-skills -c testing
+
+# Language fundamentals
+clojure-skills list-skills -c language
+```
+
+**Available categories:**
+
+```
+language/              - Core Clojure concepts
+clojure_mcp/           - MCP integration
+libraries/async/       - core.async, manifold
+libraries/cli/         - cli-matic
+libraries/database/    - next.jdbc, honeysql, ragtime, sqlite
+libraries/data_validation/ - malli, spec
+libraries/http_servers/    - http-kit, ring, pedestal
+libraries/rest_api/    - reitit, liberator, bidi
+libraries/testing/     - kaocha, test.check
+tooling/               - cider, clj-kondo, babashka
+... and 20 more categories
+```
+
+### Viewing Skills
+
+**Show a skill's full content as JSON:**
+
+```bash
+# Basic usage
+clojure-skills show-skill malli
+
+# Specify category to avoid ambiguity
+clojure-skills show-skill malli -c libraries/data_validation
+```
+
+**Extract just the markdown content:**
+
+```bash
+clojure-skills show-skill malli | jq -r '.skills/content'
+```
+
+**JSON output includes:**
+
+```json
+{
+  "skills/name": "malli",
+  "skills/category": "libraries/data_validation",
+  "skills/description": "Validate data structures...",
+  "skills/content": "# Malli Data Validation\n\n...",
+  "skills/size_bytes": 11089,
+  "skills/token_count": 2772,
+  "skills/path": "/path/to/skill.md",
+  "skills/created_at": "2025-11-12 16:46:18",
+  "skills/updated_at": "2025-11-12 16:46:18"
+}
+```
+
+### Database Statistics
+
+**View overall statistics:**
+
+```bash
+clojure-skills stats
+```
+
+**Output shows:**
+
+- Total skills, prompts, categories
+- Total size and estimated tokens
+- Category breakdown with counts
+
+### Database Management
+
+**Sync skills from filesystem:**
+
+```bash
+# After adding or modifying skill files
+clojure-skills sync
+```
+
+**Reset database (destructive):**
+
+```bash
+clojure-skills reset-db --force
+```
+
+**Note:** This will delete all data including implementation plans and tasks.
+
+---
+
+## Task Tracking
+
+The CLI includes a task tracking system for managing complex, multi-step implementations.
+
+### Core Concepts
+
+**Three-level hierarchy:**
+
+1. **Implementation Plans** - Top-level project/feature
+2. **Task Lists** - Groups of related tasks (phases, milestones)
+3. **Tasks** - Individual work items
+
+**Use cases:**
+
+- Breaking down complex features
+- Tracking progress across sessions
+- Coordinating work between agents and humans
+- Recording implementation decisions
+
+### Quick Reference
+
+**Plans:**
+
+```bash
+# Create a plan
+clojure-skills create-plan \
+  --name "api-refactor" \
+  --title "Refactor REST API" \
+  --description "Modernize API with validation" \
+  --status "in-progress"
+
+# List plans
+clojure-skills list-plans
+clojure-skills list-plans --status "in-progress"
+
+# Show plan details
+clojure-skills show-plan 1           # By ID
+clojure-skills show-plan api-refactor # By name
+
+# Update plan
+clojure-skills update-plan 1 --status "completed"
+
+# Mark complete
+clojure-skills complete-plan 1
+```
+
+**Task Lists:**
+
+```bash
+# Create task list for a plan
+clojure-skills create-task-list 1 \
+  --name "Phase 1: Database Setup" \
+  --description "Create schema and migrations"
+```
+
+**Tasks:**
+
+```bash
+# Create task in a task list
+clojure-skills create-task 1 \
+  --name "Create users table migration" \
+  --description "Add migration for users table"
+
+# Mark task complete
+clojure-skills complete-task 1
+```
+
+### Example Workflow
+
+```bash
+# 1. Create plan
+clojure-skills create-plan \
+  --name "user-auth" \
+  --title "Add User Authentication" \
+  --status "in-progress"
+# Returns: Plan ID: 1
+
+# 2. Create phases (task lists)
+clojure-skills create-task-list 1 --name "Phase 1: Database"
+clojure-skills create-task-list 1 --name "Phase 2: Core Logic"
+clojure-skills create-task-list 1 --name "Phase 3: API Endpoints"
+clojure-skills create-task-list 1 --name "Phase 4: Testing"
+
+# 3. Add tasks to Phase 1
+clojure-skills create-task 1 --name "Create users table"
+clojure-skills create-task 1 --name "Create sessions table"
+clojure-skills create-task 1 --name "Add password hashing"
+
+# 4. Work through tasks
+clojure-skills complete-task 1
+clojure-skills complete-task 2
+
+# 5. Check progress
+clojure-skills show-plan 1
+
+# 6. When finished
+clojure-skills complete-plan 1
+```
+
+See [AGENTS.md](AGENTS.md) for complete task tracking documentation.
+
+---
+
+## Skills Organization
+
+Skills are organized by category in the `skills/` directory:
+
+```
 skills/
-├── language/         # Core Clojure concepts
-├── libraries/        # Specific library guides
-├── testing/          # Test frameworks
-└── tooling/          # Development tools
+├── language/              # Clojure fundamentals (2 skills)
+│   ├── clojure_intro.md      - Immutability, functions, data structures
+│   └── clojure_repl.md       - REPL-driven development
+│
+├── clojure_mcp/           # MCP integration (1 skill)
+│   └── clojure_eval.md       - Using clojure_eval tool
+│
+├── libraries/             # Library guides (50+ skills)
+│   ├── async/
+│   │   ├── core_async.md
+│   │   └── manifold.md
+│   ├── cli/
+│   │   └── cli_matic.md
+│   ├── database/
+│   │   ├── next_jdbc.md      - JDBC database access
+│   │   ├── honeysql.md       - SQL as Clojure data
+│   │   ├── ragtime.md        - Database migrations
+│   │   └── sqlite_jdbc.md    - SQLite driver
+│   ├── data_validation/
+│   │   ├── malli.md          - Schema validation
+│   │   └── spec.md           - clojure.spec
+│   ├── http_servers/
+│   │   ├── http_kit.md       - Async HTTP server
+│   │   ├── ring.md           - Web abstractions
+│   │   └── pedestal.md       - Full web framework
+│   └── ... (27 more categories)
+│
+├── testing/               # Test frameworks (9 skills)
+│   ├── kaocha.md             - Modern test runner
+│   ├── test_check.md         - Property-based testing
+│   └── scope_capture.md      - Debug test failures
+│
+└── tooling/               # Development tools (15 skills)
+    ├── babashka.md           - Fast scripting
+    ├── clj_kondo.md          - Linting
+    ├── cider.md              - Emacs integration
+    └── nrepl.md              - REPL protocol
 ```
 
-**2. Follow the skill template:**
+### Skill Structure
+
+Each skill is a self-contained markdown document with:
 
 ```markdown
 ---
-name: your_skill_name
+name: skill_name
 description: |
-  Brief description. When to use: mention key terms users might say.
+  Brief description. When to use: key terms users might mention.
 ---
 
 # Skill Title
@@ -481,117 +426,92 @@ description: |
 [Essential understanding]
 
 ## Common Workflows
-[3-5 practical patterns]
+[3-5 practical patterns with code]
 
 ## Best Practices
 [Do's and don'ts]
 
 ## Troubleshooting
-[Common issues]
+[Common issues and solutions]
 ```
 
-**3. Test your skill:**
-
-```bash
-# Validate code examples in the REPL
-bb nrepl
-# Then connect from your editor and test examples
-
-# Check spelling
-bb typos skills/your_category/your_skill.md
-
-# Build a test prompt using it
-cat > prompts/test.md <<EOF
 ---
-sections:
-  - skills/your_category/your_skill.md
+
+## Building Prompts
+
+Skills can be composed into complete prompts for AI agents.
+
+### Prompt Templates
+
+Create a prompt template in `prompts/`:
+
+```markdown
 ---
-Test prompt
-EOF
-
-make _build/test.md
-```
-
-### Creating New Prompts
-
-**1. Identify which skills you need:**
-
-```bash
-# What knowledge does this agent need?
-# - Language basics? → skills/language/clojure_intro.md
-# - REPL workflow? → skills/language/clojure_repl.md
-# - Specific library? → skills/libraries/.../...md
-# - Testing? → skills/testing/...md
-```
-
-**2. Create prompt with YAML frontmatter:**
-
-```yaml
----
-title: Descriptive Title
+title: My Custom Agent
 author: Your Name
-date: 2025-11-10
+date: 2025-11-17
 sections:
   - skills/language/clojure_intro.md
-  - skills/libraries/http_servers/http_kit.md
+  - skills/libraries/data_validation/malli.md
+  - skills/libraries/database/next_jdbc.md
   - skills/testing/kaocha.md
 ---
 
-# Agent Introduction
+# You are a Clojure Data Validation Specialist
 
-You are a [specialized role]. You help developers [specific task].
+You help developers build applications with proper validation and database access.
 
 Your approach:
-- [Key principle 1]
-- [Key principle 2]
-- [Key principle 3]
-
-When working on code:
-1. [Step 1]
-2. [Step 2]
-3. [Step 3]
+- Validate all external data with Malli
+- Use next.jdbc for database operations
+- Write tests with Kaocha
+- Follow REPL-driven development
 ```
 
-**3. Build and test:**
+### Building
 
 ```bash
-# Build
-make _build/your_prompt.md
+# Build with Babashka
+bb build my_agent
 
-# Test with compression
-bb build-compressed your_prompt --ratio 10
+# Or use make
+make _build/my_agent.md
 
-# Use with an agent and validate quality
+# View output
+cat _build/my_agent.md
 ```
 
-### Code Quality
+The build process:
+1. Reads `prompts/my_agent.md`
+2. Extracts YAML frontmatter (sections list)
+3. Combines all referenced skills
+4. Outputs to `_build/my_agent.md`
 
-This project maintains high standards:
+### Available Tasks
 
 ```bash
-# Linting (clj-kondo)
-bb lint
+# Build specific prompt
+bb build clojure_build
 
-# Formatting (cljstyle)
-bb fmt                   # Auto-format
-bb fmt-check             # Check only
+# Build all prompts
+bb build-all
 
-# Spell checking (typos)
-bb typos                 # Find typos
-bb typos-fix             # Auto-fix
+# List built prompts with sizes
+bb list-prompts
 
-# Run everything
-bb ci
+# Watch for changes and auto-rebuild
+bb watch
+bb watch clojure_build    # Watch specific prompt
+
+# Clean build artifacts
+bb clean
 ```
 
-**Configuration files:**
+---
 
-- `.clj-kondo/` - Linter configuration
-- `_typos.toml` - Spell checker configuration (custom dictionary)
-- `bb.edn` - Task definitions
-- `deps.edn` - Clojure dependencies
+## Development
 
-### Testing
+### Running Tests
 
 ```bash
 # Run all tests
@@ -599,14 +519,84 @@ bb test
 
 # Or use Clojure directly
 clojure -M:jvm-base:dev:test
-
-# Run specific namespace
-clojure -M:dev:test -m kaocha.runner --focus clojure-skills.main-test
-
-# REPL-driven testing
-bb nrepl                 # Start REPL server (port 7889)
-# Connect from editor, test interactively
 ```
+
+### Code Quality
+
+```bash
+# Lint
+bb lint
+
+# Format
+bb fmt           # Auto-format
+bb fmt-check     # Check only
+
+# Spell check
+bb typos         # Find typos
+bb typos-fix     # Auto-fix
+
+# Full CI pipeline
+bb ci            # Runs: clean, fmt-check, lint, typos, test
+```
+
+### REPL-Driven Development
+
+```bash
+# Start nREPL server (port 7889)
+bb nrepl
+
+# Connect from your editor:
+# - Emacs (CIDER): M-x cider-connect
+# - VSCode (Calva): Connect to REPL
+# - IntelliJ (Cursive): Connect to Remote REPL
+```
+
+### Creating New Skills
+
+1. **Choose category** - `skills/libraries/`, `skills/testing/`, etc.
+
+2. **Follow template:**
+
+```markdown
+---
+name: my_skill_name
+description: |
+  Brief description with key terms for search.
+---
+
+# Skill Title
+
+## Quick Start
+...
+```
+
+3. **Test skill:**
+
+```bash
+# Validate syntax
+bb typos skills/your_category/your_skill.md
+
+# Sync to database
+clojure-skills sync
+
+# Verify it appears
+clojure-skills search "your skill topic"
+```
+
+### Database Migrations
+
+```bash
+# Run migrations
+bb migrate
+
+# Rollback last migration
+bb rollback
+
+# Rollback all migrations
+bb rollback-all
+```
+
+Migration files are in `resources/migrations/` using Ragtime format.
 
 ---
 
@@ -614,120 +604,110 @@ bb nrepl                 # Start REPL server (port 7889)
 
 ```
 clojure-skills/
-├── skills/                   # Modular knowledge units
-│   ├── language/                 → Clojure fundamentals
-│   ├── clojure_mcp/              → Tool integration
-│   ├── libraries/                → 30+ library guides
-│   │   ├── data_validation/
-│   │   ├── database/
-│   │   ├── http_servers/
-│   │   └── [27 more categories...]
-│   ├── testing/                  → Test frameworks
-│   └── tooling/                  → Development tools
+├── skills/                   # 73 skill markdown files
+│   ├── language/
+│   ├── clojure_mcp/
+│   ├── libraries/            # 30+ categories
+│   ├── testing/
+│   └── tooling/
 │
-├── prompts/                  # Prompt templates (YAML + sections)
+├── prompts/                  # Prompt templates
 │   ├── clojure_build.md
 │   └── clojure_skill_builder.md
 │
-├── prompt_templates/         # Template files for prompt creation
-│   ├── template.md
-│   └── metadata.plain
-│
 ├── _build/                   # Generated prompts (git-ignored)
-│   ├── clojure_build.md
-│   └── *.compressed.md
 │
-├── scripts/                  # Build and compression utilities
-│   ├── compress_prompt.py        → LLMLingua compression
-│   └── README.md
+├── src/                      # CLI source code
+│   └── clojure_skills/
+│       ├── cli.clj           # CLI commands
+│       ├── search.clj        # FTS5 search
+│       ├── sync.clj          # Sync skills to DB
+│       └── db/               # Database operations
+│           ├── core.clj
+│           ├── plans.clj     # Implementation plans
+│           └── tasks.clj     # Task tracking
 │
-├── src/                      # Clojure source code
 ├── test/                     # Test files
+├── resources/
+│   └── migrations/           # Ragtime migrations
 │
+├── clojure-skills.db         # SQLite database (FTS5)
 ├── bb.edn                    # Babashka tasks
 ├── deps.edn                  # Clojure dependencies
 ├── Makefile                  # Build automation (pandoc)
-├── Pipfile                   # Python dependencies (compression)
-├── _typos.toml              # Spell checking configuration
 └── readme.md                 # This file
 ```
 
 ---
 
-## Philosophy & Design Principles
+## Philosophy
 
 ### Modularity
 
-**Skills are atomic units.** Each skill teaches one concept, one library, or one workflow. This allows:
-
-- **Reusability** - Write once, use in many prompts
-- **Maintainability** - Update one skill, improve all prompts using it
-- **Discoverability** - Easy to find the right knowledge
-- **Composition** - Mix and match for custom agents
+Skills are atomic units - one concept, one library, one workflow. This enables:
+- Write once, reuse in multiple prompts
+- Update one skill, improve all prompts using it
+- Easy to find and compose
 
 ### Progressive Disclosure
 
-**Start simple, go deep.** Each skill provides:
-
-1. **Quick Start** (5 minutes) - Get something working immediately
-2. **Core Concepts** (10 minutes) - Understand the essentials
-3. **Common Workflows** (20 minutes) - Practical patterns
-4. **Advanced Topics** (30+ minutes) - Deep knowledge when needed
-
-This structure works for both learning and reference.
-
-### Vendor Neutrality
-
-**No lock-in.** These materials work with:
-
-- OpenCode (primary target)
-- Claude (Anthropic)
-- ChatGPT (OpenAI)
-- Any system accepting markdown prompts
-- Any LLM that can read compressed text (via LLMLingua)
-
-Format follows [Anthropic Skills API](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/skills) conventions but isn't tied to Claude.
+Each skill provides multiple levels:
+1. **Quick Start** (5 min) - Get working immediately
+2. **Core Concepts** (10 min) - Understand essentials
+3. **Workflows** (20 min) - Practical patterns
+4. **Advanced** (30+ min) - Deep knowledge
 
 ### Quality Over Quantity
 
-**Every skill is tested.** Code examples are:
-
+All code examples are:
 - Validated in the REPL
-- Lint-checked (clj-kondo)
-- Spell-checked (typos)
+- Lint-checked
+- Spell-checked
 - Reviewed for best practices
 
-**Better to have 30 excellent skills than 100 mediocre ones.**
+**Better 73 excellent skills than 200 mediocre ones.**
 
-### Token Efficiency
+### Searchability First
 
-**Respect context limits.** Through:
-
-- Modular design (load only what you need)
-- Optional compression (10-20x reduction)
-- Focused content (no fluff)
-- Clear structure (easy for LLMs to parse)
+Full-text search with SQLite FTS5 means:
+- Find skills by any keyword
+- Search across content, not just titles
+- Fast results even with 73+ skills
+- No external dependencies
 
 ---
 
-## Contributing
+## Advanced Features
 
-Contributions welcome! This project benefits from:
+### Compression (Optional)
 
-- **New skills** for libraries not yet covered
-- **Improved examples** in existing skills
-- **Better compression strategies** for different content types
-- **Bug fixes** in code or documentation
-- **Testing feedback** from using skills with different LLMs
+For large prompts, compression can reduce token usage by 10-20x using LLMLingua:
 
-**Before contributing:**
+```bash
+# Setup Python dependencies (one-time)
+bb setup-python
 
-1. Read [AGENTS.md](AGENTS.md) for complete development guidelines
-2. Run `bb ci` to ensure quality standards
-3. Test code examples in the REPL
-4. Check spelling with `bb typos`
+# Build and compress
+bb build-compressed clojure_build --ratio 10
 
-**No emojis please.** This project uses clear, professional language throughout.
+# Or compress existing file
+bb compress _build/clojure_build.md --ratio 10
+```
+
+See [COMPRESSION.md](COMPRESSION.md) for details.
+
+### Native Binary
+
+Build a fast native binary with GraalVM:
+
+```bash
+# Requires GraalVM with native-image
+bb build-cli
+
+# Creates: target/clojure-skills
+```
+
+Native binary starts instantly (no JVM startup time).
 
 ---
 
@@ -736,51 +716,51 @@ Contributions welcome! This project benefits from:
 ### Documentation
 
 - **[AGENTS.md](AGENTS.md)** - Complete guide for working with this repository
-- **[COMPRESSION.md](COMPRESSION.md)** - Detailed compression strategies and patterns
-- **[QUICKSTART_COMPRESSION.md](QUICKSTART_COMPRESSION.md)** - Get started with compression in 3 steps
-- **[scripts/README.md](scripts/README.md)** - Technical documentation for build scripts
+- **[COMPRESSION.md](COMPRESSION.md)** - Prompt compression strategies
+- **[scripts/README.md](scripts/README.md)** - Build script documentation
 
 ### External Links
 
 - [OpenCode](https://opencode.ai/) - AI coding agent (primary target)
-- [Anthropic Skills API](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/skills) - Skills format specification
-- [LLMLingua Paper](https://arxiv.org/abs/2310.05736) - Prompt compression research
-- [Clojure Documentation](https://clojure.org/guides/getting_started) - Official Clojure resources
-- [Babashka](https://babashka.org/) - Fast Clojure scripting
+- [Anthropic Skills API](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/skills)
+- [Clojure](https://clojure.org/)
+- [Babashka](https://babashka.org/)
 
 ---
 
-## MIT License
+## Contributing
 
-Copyright (c) <2025> <Ivan Willig>
+Contributions welcome! Areas that benefit most:
 
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
+- New skills for uncovered libraries
+- Improved examples in existing skills
+- Bug fixes
+- Testing feedback with different LLMs
 
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
+**Before contributing:**
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+1. Read [AGENTS.md](AGENTS.md) for development guidelines
+2. Run `bb ci` to ensure quality
+3. Test code examples in REPL
+4. Check spelling with `bb typos`
+
+**Note:** This project uses professional language throughout - no emojis please.
+
+---
+
+## License
+
+MIT License - see LICENSE file for details.
+
+Copyright (c) 2025 Ivan Willig
 
 ---
 
 ## Acknowledgments
 
 Built with:
-
 - **Clojure** - The language we're teaching
 - **Babashka** - Fast task automation
+- **SQLite** - Database with FTS5 search
 - **Pandoc** - Document assembly
-- **LLMLingua** - Prompt compression (Microsoft Research)
 - **OpenCode** - AI coding agent platform
