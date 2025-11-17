@@ -5,7 +5,6 @@
    [honey.sql.helpers :as helpers :refer [select from where order-by]]
    [next.jdbc :as jdbc]))
 
-
 (defn create-task-list
   "Create a new task list for an implementation plan.
 
@@ -32,15 +31,17 @@
                                 (map :task_lists/position)
                                 (reduce max 0)
                                 (inc))))]
-      (-> (helpers/insert-into :task_lists)
-          (helpers/columns :plan_id :name :description :position)
-          (helpers/values [[(:plan_id list-map)
-                            (:name list-map)
-                            (:description list-map)
-                            position]])
-          (sql/format {:returning [:*]})
-          (->> (jdbc/execute-one! db))))))
-
+      ;; Note: Using raw SQL for INSERT...RETURNING because HoneySQL has issues
+      ;; with SQLite's RETURNING clause (it appends values incorrectly)
+      (jdbc/execute-one!
+       db
+       ["INSERT INTO task_lists (plan_id, name, description, position)
+         VALUES (?, ?, ?, ?)
+         RETURNING *"
+        (:plan_id list-map)
+        (:name list-map)
+        (:description list-map)
+        position]))))
 
 (defn get-task-list-by-id
   "Get a task list by ID."
@@ -51,7 +52,6 @@
       (sql/format)
       (->> (jdbc/execute-one! db))))
 
-
 (defn list-task-lists-for-plan
   "List all task lists for a specific implementation plan, ordered by position."
   [db plan-id]
@@ -61,7 +61,6 @@
       (order-by [:position :asc])
       (sql/format)
       (->> (jdbc/execute! db))))
-
 
 (defn update-task-list
   "Update a task list by ID."
@@ -74,7 +73,6 @@
           (sql/format {:returning [:*]})
           (->> (jdbc/execute-one! db))))))
 
-
 (defn delete-task-list
   "Delete a task list by ID."
   [db id]
@@ -83,7 +81,6 @@
       (sql/format {:returning [:*]})
       (->> (jdbc/execute-one! db))))
 
-
 (defn reorder-task-lists
   "Reorder task lists by updating their positions."
   [db plan-id position-map]
@@ -91,7 +88,6 @@
   (doseq [[list-id position] position-map]
     (update-task-list db list-id {:position position}))
   (list-task-lists-for-plan db plan-id))
-
 
 (defn create-task
   "Create a new task in a task list.
@@ -120,16 +116,18 @@
                                 (map :tasks/position)
                                 (reduce max 0)
                                 (inc))))]
-      (-> (helpers/insert-into :tasks)
-          (helpers/columns :list_id :name :description :position :assigned_to)
-          (helpers/values [[(:list_id task-map)
-                            (:name task-map)
-                            (:description task-map)
-                            position
-                            (:assigned_to task-map)]])
-          (sql/format {:returning [:*]})
-          (->> (jdbc/execute-one! db))))))
-
+      ;; Note: Using raw SQL for INSERT...RETURNING because HoneySQL has issues
+      ;; with SQLite's RETURNING clause (it appends values incorrectly)
+      (jdbc/execute-one!
+       db
+       ["INSERT INTO tasks (list_id, name, description, position, assigned_to)
+         VALUES (?, ?, ?, ?, ?)
+         RETURNING *"
+        (:list_id task-map)
+        (:name task-map)
+        (:description task-map)
+        position
+        (:assigned_to task-map)]))))
 
 (defn get-task-by-id
   "Get a task by ID."
@@ -140,7 +138,6 @@
       (sql/format)
       (->> (jdbc/execute-one! db))))
 
-
 (defn list-tasks-for-list
   "List all tasks for a specific task list, ordered by position."
   [db list-id]
@@ -150,7 +147,6 @@
       (order-by [:position :asc])
       (sql/format)
       (->> (jdbc/execute! db))))
-
 
 (defn list-all-tasks-for-plan
   "List all tasks for a specific implementation plan, grouped by task list."
@@ -163,7 +159,6 @@
       (sql/format)
       (->> (jdbc/execute! db))))
 
-
 (defn update-task
   "Update a task by ID."
   [db id update-map]
@@ -175,7 +170,6 @@
           (sql/format {:returning [:*]})
           (->> (jdbc/execute-one! db))))))
 
-
 (defn delete-task
   "Delete a task by ID."
   [db id]
@@ -183,7 +177,6 @@
       (where [:= :id id])
       (sql/format {:returning [:*]})
       (->> (jdbc/execute-one! db))))
-
 
 (defn complete-task
   "Mark a task as completed."
@@ -195,7 +188,6 @@
       (sql/format {:returning [:*]})
       (->> (jdbc/execute-one! db))))
 
-
 (defn uncomplete-task
   "Mark a task as not completed."
   [db id]
@@ -206,7 +198,6 @@
       (sql/format {:returning [:*]})
       (->> (jdbc/execute-one! db))))
 
-
 (defn reorder-tasks
   "Reorder tasks by updating their positions."
   [db list-id position-map]
@@ -214,7 +205,6 @@
   (doseq [[task-id position] position-map]
     (update-task db task-id {:position position}))
   (list-tasks-for-list db list-id))
-
 
 (defn get-task-summary-for-plan
   "Get a summary of task completion for a specific plan."

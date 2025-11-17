@@ -35,6 +35,9 @@ Thumbs.db
 test-db.db
 junit.xml
 
+# Database files
+clojure-skills.db
+
 # Docs
 docs.html
 

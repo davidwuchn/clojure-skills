@@ -2,25 +2,14 @@
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
             [clojure-skills.db.migrate :as migrate]
             [next.jdbc :as jdbc]
-            [clojure.java.io :as io]))
+            [clojure-skills.test-utils :as tu]))
 
-(def test-db-path "test-migrate-db.db")
-
-(defn test-db-fixture [f]
-  ;; Clean up any existing test database
-  (when (.exists (io/file test-db-path))
-    (.delete (io/file test-db-path)))
-  ;; Run the test
-  (f)
-  ;; Clean up after test
-  (when (.exists (io/file test-db-path))
-    (.delete (io/file test-db-path))))
-
-(use-fixtures :each test-db-fixture)
+;; Use shared test database fixture
+(use-fixtures :each (tu/with-test-db-fixture {:in-memory? false :db-path "test-migrate-db.db"}))
 
 (deftest test-migrate-db
   (testing "migrate-db creates schema on new database"
-    (let [db {:dbtype "sqlite" :dbname test-db-path}]
+    (let [db {:dbtype "sqlite" :dbname "test-migrate-db.db"}]
       (migrate/migrate-db db)
 
       ;; Check that ragtime_migrations table exists
@@ -52,7 +41,7 @@
 
 (deftest test-migrate-db-idempotent
   (testing "migrate-db is idempotent - running twice doesn't fail"
-    (let [db {:dbtype "sqlite" :dbname test-db-path}]
+    (let [db {:dbtype "sqlite" :dbname "test-migrate-db.db"}]
       ;; First migration
       (migrate/migrate-db db)
       (let [migrations1 (jdbc/execute! db ["SELECT * FROM ragtime_migrations"])]
@@ -65,7 +54,7 @@
 
 (deftest test-schema-structure
   (testing "migrated schema has correct table structure"
-    (let [db {:dbtype "sqlite" :dbname test-db-path}]
+    (let [db {:dbtype "sqlite" :dbname "test-migrate-db.db"}]
       (migrate/migrate-db db)
 
       ;; Test that we can insert into skills table

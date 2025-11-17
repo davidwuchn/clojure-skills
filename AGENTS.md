@@ -188,7 +188,6 @@ clojure-skills/
 │           ├── plans.clj    # Implementation plans
 │           └── tasks.clj    # Task tracking
 ├── test/                # Test files
-├── clojure-skills.db    # SQLite database (FTS5 search + task tracking)
 ├── _typos.toml          # Typos spell checker config
 ├── bb.edn               # Babashka task definitions
 ├── deps.edn             # Clojure dependencies
@@ -205,7 +204,7 @@ clojure-skills/
   - `search.clj` - FTS5 full-text search implementation
   - `db/` - Database operations (skills, plans, tasks)
 - **`resources/migrations/`**: Ragtime database migrations
-- **`clojure-skills.db`**: SQLite database with FTS5 search and task tracking
+- **Database**: SQLite database with FTS5 search and task tracking (stored in ~/.config/clojure-skills/clojure-skills.db)
 - **`test/`**: Test files using Kaocha
 
 ---
@@ -337,6 +336,11 @@ clojure-skills create-task-list 1 --name "Phase 1"    # 1 = plan ID
 # Tasks
 clojure-skills create-task 1 --name "Task name"       # 1 = task list ID
 clojure-skills complete-task 1                        # 1 = task ID
+
+# Delete commands (all require --force flag)
+clojure-skills delete-plan 1 --force                  # Deletes plan + lists + tasks
+clojure-skills delete-task-list 1 --force             # Deletes list + tasks
+clojure-skills delete-task 1 --force                  # Deletes single task
 ```
 
 ### Running Tasks
@@ -971,9 +975,12 @@ Complete reference for all task tracking commands:
 | `show-plan` | `<ID-OR-NAME>` | None | None | Show plan details with all task lists and tasks |
 | `update-plan` | `<PLAN-ID>` | None | `--name`, `--title`, `--description`, `--content`, `--status`, `--assigned-to` | Update plan fields |
 | `complete-plan` | `<PLAN-ID>` | None | None | Mark plan as completed |
+| `delete-plan` | `<ID-OR-NAME>` | `--force` | None | Delete a plan (cascades to lists and tasks) |
 | `create-task-list` | `<PLAN-ID>` | `--name` | `--description`, `--position` | Create task list in a plan |
+| `delete-task-list` | `<TASK-LIST-ID>` | `--force` | None | Delete a task list (cascades to tasks) |
 | `create-task` | `<TASK-LIST-ID>` | `--name` | `--description`, `--position`, `--assigned-to` | Create task in a task list |
 | `complete-task` | `<TASK-ID>` | None | None | Mark task as completed |
+| `delete-task` | `<TASK-ID>` | `--force` | None | Delete a single task |
 
 **Argument Types:**
 - `<ID>` - Numeric ID (integer)

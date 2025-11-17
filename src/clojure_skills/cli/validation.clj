@@ -90,6 +90,21 @@
   [:map
    [:id :int]])
 
+(def delete-plan-args-schema
+  "Schema for delete-plan command arguments."
+  [:map
+   [:plan-id-or-name [:or :int :string]]])
+
+(def delete-task-list-args-schema
+  "Schema for delete-task-list command arguments."
+  [:map
+   [:id :int]])
+
+(def delete-task-args-schema
+  "Schema for delete-task command arguments."
+  [:map
+   [:id :int]])
+
 ;; ------------------------------------------------------------
 ;; Validation Functions
 ;; ------------------------------------------------------------

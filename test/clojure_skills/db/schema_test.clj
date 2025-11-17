@@ -2,22 +2,10 @@
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
             [clojure-skills.db.schema :as schema]
             [next.jdbc :as jdbc]
-            [clojure.java.io :as io]))
+            [clojure-skills.test-utils :as tu]))
 
-(def test-db-path "test-db.db")
-
-(defn test-db-fixture [f]
-  ;; Create a fresh test database before each test
-  ;; Clean up any existing test database
-  (when (.exists (io/file test-db-path))
-    (.delete (io/file test-db-path)))
-  ;; Run the test
-  (f)
-  ;; Clean up after test
-  (when (.exists (io/file test-db-path))
-    (.delete (io/file test-db-path))))
-
-(use-fixtures :each test-db-fixture)
+;; Use shared test database fixture
+(use-fixtures :each (tu/with-test-db-fixture {:in-memory? false :db-path "test-db.db"}))
 
 (deftest test-migrations-structure
   (testing "migrations is a vector of maps"
@@ -39,12 +27,12 @@
 
 (deftest test-get-current-version
   (testing "get-current-version returns 0 for new database"
-    (let [db {:dbtype "sqlite" :dbname test-db-path}]
+    (let [db {:dbtype "sqlite" :dbname "test-db.db"}]
       (is (= 0 (schema/get-current-version db))))))
 
 (deftest test-migrate
   (testing "migrate creates schema on new database"
-    (let [db {:dbtype "sqlite" :dbname test-db-path}]
+    (let [db {:dbtype "sqlite" :dbname "test-db.db"}]
       (schema/migrate db)
 
       ;; Check that schema_version table exists
@@ -68,7 +56,7 @@
 
 (deftest test-migrate-idempotent
   (testing "migrate is idempotent - running twice doesn't fail"
-    (let [db {:dbtype "sqlite" :dbname test-db-path}]
+    (let [db {:dbtype "sqlite" :dbname "test-db.db"}]
       (schema/migrate db)
       (let [version1 (schema/get-current-version db)]
         (schema/migrate db)
@@ -77,7 +65,7 @@
 
 (deftest test-reset-database
   (testing "reset-database drops and recreates schema"
-    (let [db {:dbtype "sqlite" :dbname test-db-path}]
+    (let [db {:dbtype "sqlite" :dbname "test-db.db"}]
       ;; First migration
       (schema/migrate db)
 

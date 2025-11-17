@@ -302,6 +302,10 @@ clojure-skills update-plan 1 --status "completed"
 
 # Mark complete
 clojure-skills complete-plan 1
+
+# Delete plan (requires --force)
+clojure-skills delete-plan 1 --force
+clojure-skills delete-plan "api-refactor" --force  # By name
 ```
 
 **Task Lists:**
@@ -311,6 +315,9 @@ clojure-skills complete-plan 1
 clojure-skills create-task-list 1 \
   --name "Phase 1: Database Setup" \
   --description "Create schema and migrations"
+
+# Delete task list (requires --force)
+clojure-skills delete-task-list 1 --force
 ```
 
 **Tasks:**
@@ -323,6 +330,9 @@ clojure-skills create-task 1 \
 
 # Mark task complete
 clojure-skills complete-task 1
+
+# Delete task (requires --force)
+clojure-skills delete-task 1 --force
 ```
 
 **Plan-Skill Associations:**
@@ -387,6 +397,51 @@ clojure-skills show-plan 1
 
 # 8. When finished
 clojure-skills complete-plan 1
+
+# 9. Later, if you need to clean up
+clojure-skills delete-plan 1 --force  # Deletes plan, lists, and tasks
+```
+
+### Deleting Plans, Lists, and Tasks
+
+All delete commands require the `--force` flag as a safety measure:
+
+```bash
+# Delete a plan (cascades to all task lists and tasks)
+clojure-skills delete-plan <ID-OR-NAME> --force
+
+# Delete a task list (cascades to all tasks in the list)
+clojure-skills delete-task-list <TASK-LIST-ID> --force
+
+# Delete a single task
+clojure-skills delete-task <TASK-ID> --force
+```
+
+**Safety features:**
+- Without `--force`, commands show what will be deleted and exit
+- Cascade information displayed before confirmation required
+- Clear error messages for non-existent items
+- Proper exit codes for scripting
+
+**Examples:**
+
+```bash
+# See what would be deleted (without --force)
+$ clojure-skills delete-plan 1
+ERROR: This will DELETE the following:
+  Plan: user-auth
+  Task Lists: 4
+  Total Tasks: 12
+
+Use --force to confirm deletion.
+
+# Actually delete (with --force)
+$ clojure-skills delete-plan 1 --force
+SUCCESS: Deleted plan: user-auth
+
+# Delete by name instead of ID
+$ clojure-skills delete-plan "user-auth" --force
+SUCCESS: Deleted plan: user-auth
 ```
 
 See [AGENTS.md](AGENTS.md) for complete task tracking documentation.
@@ -851,7 +906,6 @@ clojure-skills/
 ├── resources/
 │   └── migrations/           # Ragtime migrations
 │
-├── clojure-skills.db         # SQLite database (FTS5)
 ├── bb.edn                    # Babashka tasks
 ├── deps.edn                  # Clojure dependencies
 ├── Makefile                  # Build automation (pandoc)

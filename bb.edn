@@ -254,7 +254,8 @@
    :task (do
            (info-msg "Running tests...")
            (let [start (System/currentTimeMillis)
-                 result (clojure {:continue true} "-M:jvm-base:dev:test")
+                 result (apply clojure (into ["-M:jvm-base:dev:test"] *command-line-args*))
+                 ;;result (clojure {:continue true} "-M:jvm-base:dev:test")
                  elapsed (- (System/currentTimeMillis) start)]
              (if (zero? (:exit result))
                (success-msg (format "Tests passed in %.2fs" (/ elapsed 1000.0)))

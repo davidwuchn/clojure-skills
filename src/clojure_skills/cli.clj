@@ -20,6 +20,9 @@
 
 (set! *warn-on-reflection* true)
 
+;; Dynamic var to allow mocking System/exit in tests
+(def ^:dynamic *exit-fn* (fn [code] (System/exit code)))
+
 ;; Utility functions for output formatting
 
 (defn format-size
@@ -78,7 +81,7 @@
       [config db])
     (catch Exception e
       (print-error-with-exception "Failed to load configuration" e)
-      (System/exit 1))))
+      (*exit-fn* 1))))
 
 (defn handle-command-errors
   "Execute a command function with unified error handling."
@@ -87,14 +90,14 @@
     (apply f args)
     (catch Exception e
       (print-error-with-exception (str operation-name " failed") e)
-      (System/exit 1))))
+      (*exit-fn* 1))))
 
 (defn validate-non-blank
   "Validate that a value is not nil or blank, exiting with error if it is."
   [value error-message]
   (when (or (nil? value) (str/blank? value))
     (print-error error-message)
-    (System/exit 1)))
+    (*exit-fn* 1)))
 
 ;; Command implementations
 
@@ -248,7 +251,7 @@
     (do
       (print-error "This will DELETE all data in the database!")
       (println "Use --force to confirm.")
-      (System/exit 1))
+      (*exit-fn* 1))
     (handle-command-errors
      "Reset database"
      (fn []
@@ -273,7 +276,7 @@
            (do
              (print-error (str "Skill not found: " skill-name
                                (when category (str " in category " category))))
-             (System/exit 1))))))))
+             (*exit-fn* 1))))))))
 
 (defn cmd-create-plan
   "Create a new implementation plan."
@@ -395,7 +398,7 @@
                                      (:tasks/name task)))))))))
            (do
              (print-error (str "Plan not found: " plan-id-or-name))
-             (System/exit 1))))))))
+             (*exit-fn* 1))))))))
 
 (defn cmd-update-plan
   "Update an implementation plan."
@@ -424,7 +427,7 @@
            (print-success (str "Updated plan: " (:implementation_plans/name plan)))
            (do
              (print-error (str "Plan not found: " plan-id))
-             (System/exit 1))))))))
+             (*exit-fn* 1))))))))
 
 (defn cmd-complete-plan
   "Mark an implementation plan as completed."
@@ -443,7 +446,52 @@
            (print-success (str "Completed plan: " (:implementation_plans/name plan)))
            (do
              (print-error (str "Plan not found: " plan-id))
-             (System/exit 1))))))))
+             (*exit-fn* 1))))))))
+
+(defn cmd-delete-plan
+  "Delete an implementation plan."
+  [{:keys [_arguments force]}]
+  (let [plan-id-or-name (first _arguments)]
+    (validate-non-blank plan-id-or-name "Plan ID or name cannot be empty")
+    (handle-command-errors
+     "Delete plan"
+     (fn []
+       (let [[_config db] (load-config-and-db)
+             ;; Validate and coerce the argument
+             args (v/coerce-and-validate!
+                   v/delete-plan-args-schema
+                   {:plan-id-or-name plan-id-or-name})
+             plan-id-or-name-coerced (:plan-id-or-name args)
+             ;; Get plan details to show what will be deleted
+             plan (if (integer? plan-id-or-name-coerced)
+                    (plans/get-plan-by-id db plan-id-or-name-coerced)
+                    (plans/get-plan-by-name db plan-id-or-name-coerced))]
+
+         (when-not plan
+           (print-error (str "Plan not found: " plan-id-or-name))
+           (*exit-fn* 1))
+
+         (let [plan-id (:implementation_plans/id plan)
+               task-lists (tasks/list-task-lists-for-plan db plan-id)
+               task-count (reduce (fn [acc list]
+                                    (+ acc (count (tasks/list-tasks-for-list db (:task_lists/id list)))))
+                                  0
+                                  task-lists)]
+
+           ;; Check for force flag - deletion only happens in else branch
+           (if-not force
+             (do
+               (print-error "This will DELETE the following:")
+               (println (str "  Plan: " (:implementation_plans/name plan)))
+               (println (str "  Task Lists: " (count task-lists)))
+               (println (str "  Total Tasks: " task-count))
+               (println)
+               (println "Use --force to confirm deletion.")
+               (*exit-fn* 1))
+             (do
+               ;; Perform deletion
+               (plans/delete-plan db plan-id)
+               (print-success (str "Deleted plan: " (:implementation_plans/name plan)))))))))))
 
 (defn cmd-create-task-list
   "Create a task list for an implementation plan."
@@ -471,6 +519,41 @@
              task-list (tasks/create-task-list db list-data)]
          (print-success (str "Created task list: " (:task_lists/name task-list)))
          (println (str "Task List ID: " (:task_lists/id task-list))))))))
+
+(defn cmd-delete-task-list
+  "Delete a task list."
+  [{:keys [_arguments force]}]
+  (let [list-id (first _arguments)]
+    (validate-non-blank list-id "Task list ID cannot be empty")
+    (handle-command-errors
+     "Delete task list"
+     (fn []
+       (let [[_config db] (load-config-and-db)
+             ;; Validate and coerce the ID
+             args (v/coerce-and-validate! v/delete-task-list-args-schema {:id list-id})
+             list-id-coerced (:id args)
+             ;; Get task list details
+             task-list (tasks/get-task-list-by-id db list-id-coerced)]
+
+         (when-not task-list
+           (print-error (str "Task list not found: " list-id))
+           (*exit-fn* 1))
+
+         (let [list-tasks (tasks/list-tasks-for-list db list-id-coerced)]
+
+           ;; Check for force flag - deletion only happens in else branch
+           (if-not force
+             (do
+               (print-error "This will DELETE the following:")
+               (println (str "  Task List: " (:task_lists/name task-list)))
+               (println (str "  Total Tasks: " (count list-tasks)))
+               (println)
+               (println "Use --force to confirm deletion.")
+               (*exit-fn* 1))
+             (do
+               ;; Perform deletion
+               (tasks/delete-task-list db list-id-coerced)
+               (print-success (str "Deleted task list: " (:task_lists/name task-list)))))))))))
 
 (defn cmd-create-task
   "Create a task in a task list."
@@ -517,7 +600,39 @@
            (print-success (str "Completed task: " (:tasks/name task)))
            (do
              (print-error (str "Task not found: " task-id))
-             (System/exit 1))))))))
+             (*exit-fn* 1))))))))
+
+(defn cmd-delete-task
+  "Delete a task."
+  [{:keys [_arguments force]}]
+  (let [task-id (first _arguments)]
+    (validate-non-blank task-id "Task ID cannot be empty")
+    (handle-command-errors
+     "Delete task"
+     (fn []
+       (let [[_config db] (load-config-and-db)
+             ;; Validate and coerce the ID
+             args (v/coerce-and-validate! v/delete-task-args-schema {:id task-id})
+             task-id-coerced (:id args)
+             ;; Get task details
+             task (tasks/get-task-by-id db task-id-coerced)]
+
+         (when-not task
+           (print-error (str "Task not found: " task-id))
+           (*exit-fn* 1))
+
+         ;; Check for force flag - deletion only happens in else branch
+         (if-not force
+           (do
+             (print-error "This will DELETE the following:")
+             (println (str "  Task: " (:tasks/name task)))
+             (println)
+             (println "Use --force to confirm deletion.")
+             (*exit-fn* 1))
+           (do
+             ;; Perform deletion
+             (tasks/delete-task db task-id-coerced)
+             (print-success (str "Deleted task: " (:tasks/name task))))))))))
 
 (defn cmd-associate-skill
   "Associate a skill with an implementation plan."
@@ -534,7 +649,7 @@
                        (plan-skills/get-skill-by-path db skill-name-or-path))]
          (when-not skill
            (print-error (str "Skill not found: " skill-name-or-path))
-           (System/exit 1))
+           (*exit-fn* 1))
          (let [pos (or position 0)
                _result (plan-skills/associate-skill-with-plan db
                                                               {:plan-id plan-id
@@ -557,7 +672,7 @@
                        (plan-skills/get-skill-by-path db skill-name-or-path))]
          (when-not skill
            (print-error (str "Skill not found: " skill-name-or-path))
-           (System/exit 1))
+           (*exit-fn* 1))
          (let [result (plan-skills/dissociate-skill-from-plan db
                                                               {:plan-id plan-id
                                                                :skill-id (:skills/id skill)})]
@@ -748,6 +863,19 @@
              :required true}]
      :runs cmd-complete-plan}
 
+    {:command "delete-plan"
+     :description "Delete an implementation plan (requires --force)"
+     :args [{:arg "id-or-name"
+             :as "Plan ID or name"
+             :type :string
+             :required true}]
+     :opts [{:option "force"
+             :short "f"
+             :as "Confirm deletion"
+             :type :with-flag
+             :default false}]
+     :runs cmd-delete-plan}
+
     ;; Task tracking - Task Lists and Tasks
     {:command "create-task-list"
      :description "Create a task list within a plan"
@@ -766,6 +894,19 @@
              :as "Display position"
              :type :int}]
      :runs cmd-create-task-list}
+
+    {:command "delete-task-list"
+     :description "Delete a task list (requires --force)"
+     :args [{:arg "list-id"
+             :as "Task list ID"
+             :type :string
+             :required true}]
+     :opts [{:option "force"
+             :short "f"
+             :as "Confirm deletion"
+             :type :with-flag
+             :default false}]
+     :runs cmd-delete-task-list}
 
     {:command "create-task"
      :description "Create a task in a task list"
@@ -795,6 +936,19 @@
              :type :string
              :required true}]
      :runs cmd-complete-task}
+
+    {:command "delete-task"
+     :description "Delete a task (requires --force)"
+     :args [{:arg "task-id"
+             :as "Task ID"
+             :type :string
+             :required true}]
+     :opts [{:option "force"
+             :short "f"
+             :as "Confirm deletion"
+             :type :with-flag
+             :default false}]
+     :runs cmd-delete-task}
 
     ;; Plan-skill associations
     {:command "associate-skill"
