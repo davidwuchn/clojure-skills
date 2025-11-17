@@ -4,6 +4,7 @@
             [clojure.string :as str]
             [bling.core :as bling]
             [clj-commons.format.table :as table]
+            [clj-commons.format.exceptions :as ex]
             [jsonista.core :as json]
             [clojure-skills.config :as config]
             [clojure-skills.db.core :as db]
@@ -49,161 +50,181 @@
 (defn print-info [msg]
   (println (bling/bling [:bold :blue "INFO:"] msg)))
 
+(defn print-error-with-exception
+  "Print error message with pretty-printed exception details."
+  [msg e]
+  (println (bling/bling [:bold :red "ERROR:"] msg))
+  (ex/print-exception e))
+
+(defn load-config-and-db
+  "Load configuration and database spec, exiting with error if failed."
+  []
+  (try
+    (let [config (config/load-config)
+          db (db/get-db config)]
+      [config db])
+    (catch Exception e
+      (print-error-with-exception "Failed to load configuration" e)
+      (System/exit 1))))
+
+(defn handle-command-errors
+  "Execute a command function with unified error handling."
+  [operation-name f & args]
+  (try
+    (apply f args)
+    (catch Exception e
+      (print-error-with-exception (str operation-name " failed") e)
+      (System/exit 1))))
+
+(defn validate-non-blank
+  "Validate that a value is not nil or blank, exiting with error if it is."
+  [value error-message]
+  (when (or (nil? value) (str/blank? value))
+    (print-error error-message)
+    (System/exit 1)))
+
 ;;; Command implementations
 
 (defn cmd-init
   "Initialize the database."
   [_opts]
-  (try
-    (config/init-config)
-    (let [config (config/load-config)
-          db-path (config/get-db-path config)]
-      (print-info (str "Initializing database at " db-path))
-      (db/init-db (db/get-db config))
-      (print-success "Database initialized successfully"))
-    (catch Exception e
-      (print-error (str "Failed to initialize database: " (.getMessage e)))
-      (System/exit 1))))
+  (handle-command-errors
+   "Database initialization"
+   (fn []
+     (config/init-config)
+     (let [[config db] (load-config-and-db)
+           db-path (config/get-db-path config)]
+       (print-info (str "Initializing database at " db-path))
+       (db/init-db db)
+       (print-success "Database initialized successfully")))))
 
 (defn cmd-sync
   "Sync skills and prompts to database."
   [_opts]
-  (try
-    (let [config (config/load-config)
-          db (db/get-db config)]
-      (print-info "Syncing skills and prompts...")
-      (sync/sync-all db config)
-      (print-success "Sync complete"))
-    (catch Exception e
-      (print-error (str "Sync failed: " (.getMessage e)))
-      (System/exit 1))))
+  (handle-command-errors
+   "Sync"
+   (fn []
+     (let [[config db] (load-config-and-db)]
+       (print-info "Syncing skills and prompts...")
+       (sync/sync-all db config)
+       (print-success "Sync complete")))))
 
 (defn cmd-search
   "Search skills and prompts."
   [{:keys [_arguments category type max-results]}]
-  (try
-    (let [query (first _arguments)]
-      (when (or (nil? query) (str/blank? query))
-        (print-error "Search query cannot be empty")
-        (System/exit 1))
-      (let [config (config/load-config)
-            db (db/get-db config)]
-        (print-info (str "Searching for: " query))
-        (let [results (cond
-                        (= type "skills")
-                        {:skills (search/search-skills db query
-                                                       :max-results max-results
-                                                       :category category)
-                         :prompts []}
+  (let [query (first _arguments)]
+    (validate-non-blank query "Search query cannot be empty")
+    (handle-command-errors
+     "Search"
+     (fn []
+       (let [[_config db] (load-config-and-db)]
+         (print-info (str "Searching for: " query))
+         (let [results (cond
+                         (= type "skills")
+                         {:skills (search/search-skills db query
+                                                        :max-results max-results
+                                                        :category category)
+                          :prompts []}
 
-                        (= type "prompts")
-                        {:skills []
-                         :prompts (search/search-prompts db query
-                                                         :max-results max-results)}
+                         (= type "prompts")
+                         {:skills []
+                          :prompts (search/search-prompts db query
+                                                          :max-results max-results)}
 
-                        :else
-                        (search/search-all db query
-                                           :max-results max-results
-                                           :category category))]
+                         :else
+                         (search/search-all db query
+                                            :max-results max-results
+                                            :category category))]
 
-          (when (seq (:skills results))
-            (println)
-            (println (bling/bling [:bold (format "Found %d skills" (count (:skills results)))]))
-            (format-table
-             [:name :category :size :tokens]
-             (map (fn [skill]
-                    {:name (:skills/name skill)
-                     :category (:skills/category skill)
-                     :size (format-size (or (:skills/size_bytes skill) 0))
-                     :tokens (or (:skills/token_count skill) 0)})
-                  (:skills results))))
+           (when (seq (:skills results))
+             (println)
+             (println (bling/bling [:bold (format "Found %d skills" (count (:skills results)))]))
+             (format-table
+              [:name :category :size :tokens]
+              (map (fn [skill]
+                     {:name (:skills/name skill)
+                      :category (:skills/category skill)
+                      :size (format-size (or (:skills/size_bytes skill) 0))
+                      :tokens (or (:skills/token_count skill) 0)})
+                   (:skills results))))
 
-          (when (seq (:prompts results))
-            (println)
-            (println (bling/bling [:bold (format "Found %d prompts" (count (:prompts results)))]))
-            (format-table
-             [:name :size :tokens]
-             (map (fn [prompt]
-                    {:name (:prompts/name prompt)
-                     :size (format-size (or (:prompts/size_bytes prompt) 0))
-                     :tokens (or (:prompts/token_count prompt) 0)})
-                  (:prompts results))))
+           (when (seq (:prompts results))
+             (println)
+             (println (bling/bling [:bold (format "Found %d prompts" (count (:prompts results)))]))
+             (format-table
+              [:name :size :tokens]
+              (map (fn [prompt]
+                     {:name (:prompts/name prompt)
+                      :size (format-size (or (:prompts/size_bytes prompt) 0))
+                      :tokens (or (:prompts/token_count prompt) 0)})
+                   (:prompts results))))
 
-          (when (and (empty? (:skills results))
-                     (empty? (:prompts results)))
-            (println "No results found.")))))
-    (catch Exception e
-      (print-error (str "Search failed: " (.getMessage e)))
-      (System/exit 1))))
+           (when (and (empty? (:skills results))
+                      (empty? (:prompts results)))
+             (println "No results found."))))))))
 
 (defn cmd-list-skills
   "List all skills."
   [{:keys [category]}]
-  (try
-    (let [config (config/load-config)
-          db (db/get-db config)
-          skills (if category
-                   (search/list-skills db :category category)
-                   (search/list-skills db))]
-      (println)
-      (println (bling/bling [:bold (format "Found %d skills" (count skills))]))
-      (format-table
-       [:name :category :size :tokens]
-       (map (fn [skill]
-              {:name (:skills/name skill)
-               :category (:skills/category skill)
-               :size (format-size (or (:skills/size_bytes skill) 0))
-               :tokens (or (:skills/token_count skill) 0)})
-            skills)))
-    (catch Exception e
-      (print-error (str "Failed to list skills: " (.getMessage e)))
-      (System/exit 1))))
+  (handle-command-errors
+   "List skills"
+   (fn []
+     (let [[_config db] (load-config-and-db)
+           skills (if category
+                    (search/list-skills db :category category)
+                    (search/list-skills db))]
+       (println)
+       (println (bling/bling [:bold (format "Found %d skills" (count skills))]))
+       (format-table
+        [:name :category :size :tokens]
+        (map (fn [skill]
+               {:name (:skills/name skill)
+                :category (:skills/category skill)
+                :size (format-size (or (:skills/size_bytes skill) 0))
+                :tokens (or (:skills/token_count skill) 0)})
+             skills))))))
 
 (defn cmd-list-prompts
   "List all prompts."
   [_opts]
-  (try
-    (let [config (config/load-config)
-          db (db/get-db config)
-          prompts (search/list-prompts db)]
-      (println)
-      (println (bling/bling [:bold (format "Found %d prompts" (count prompts))]))
-      (format-table
-       [:name :size :tokens]
-       (map (fn [prompt]
-              {:name (:prompts/name prompt)
-               :size (format-size (or (:prompts/size_bytes prompt) 0))
-               :tokens (or (:prompts/token_count prompt) 0)})
-            prompts)))
-    (catch Exception e
-      (print-error (str "Failed to list prompts: " (.getMessage e)))
-      (System/exit 1))))
+  (handle-command-errors
+   "List prompts"
+   (fn []
+     (let [[_config db] (load-config-and-db)
+           prompts (search/list-prompts db)]
+       (println)
+       (println (bling/bling [:bold (format "Found %d prompts" (count prompts))]))
+       (format-table
+        [:name :size :tokens]
+        (map (fn [prompt]
+               {:name (:prompts/name prompt)
+                :size (format-size (or (:prompts/size_bytes prompt) 0))
+                :tokens (or (:prompts/token_count prompt) 0)})
+             prompts))))))
 
 (defn cmd-stats
   "Show database statistics."
   [_opts]
-  (try
-    (let [config (config/load-config)
-          db (db/get-db config)
-          stats (search/get-stats db)]
-      (println)
-      (println (bling/bling [:bold "Database Statistics"]))
-      (println)
-      (format-table
-       [{:metric "Skills" :value (:skills stats)}
-        {:metric "Prompts" :value (:prompts stats)}
-        {:metric "Categories" :value (:categories stats)}
-        {:metric "Total Size" :value (format-size (:total-size-bytes stats))}
-        {:metric "Total Tokens" :value (:total-tokens stats)}])
-      (println (bling/bling [:bold "Category Breakdown:"]))
-      (format-table
-       (map (fn [cat]
-              {:category (or (:skills/category cat) (:category cat) "unknown")
-               :count (or (:count cat) 0)})
-            (:category-breakdown stats))))
-    (catch Exception e
-      (print-error (str "Failed to get stats: " (.getMessage e)))
-      (System/exit 1))))
+  (handle-command-errors
+   "Get stats"
+   (fn []
+     (let [[_config db] (load-config-and-db)
+           stats (search/get-stats db)]
+       (println)
+       (println (bling/bling [:bold "Database Statistics"]))
+       (println)
+       (format-table
+        [{:metric "Skills" :value (:skills stats)}
+         {:metric "Prompts" :value (:prompts stats)}
+         {:metric "Categories" :value (:categories stats)}
+         {:metric "Total Size" :value (format-size (:total-size-bytes stats))}
+         {:metric "Total Tokens" :value (:total-tokens stats)}])
+       (println (bling/bling [:bold "Category Breakdown:"]))
+       (format-table
+        (map (fn [cat]
+               {:category (or (:skills/category cat) (:category cat) "unknown")
+                :count (or (:count cat) 0)})
+             (:category-breakdown stats)))))))
 
 (defn cmd-reset-db
   "Reset database (WARNING: destructive)."
@@ -213,37 +234,31 @@
       (print-error "This will DELETE all data in the database!")
       (println "Use --force to confirm.")
       (System/exit 1))
-    (try
-      (let [config (config/load-config)
-            db (db/get-db config)]
-        (print-info "Resetting database...")
-        (schema/reset-database db)
-        (print-success "Database reset complete"))
-      (catch Exception e
-        (print-error (str "Reset failed: " (.getMessage e)))
-        (System/exit 1)))))
+    (handle-command-errors
+     "Reset database"
+     (fn []
+       (let [[_config db] (load-config-and-db)]
+         (print-info "Resetting database...")
+         (schema/reset-database db)
+         (print-success "Database reset complete"))))))
 
 (defn cmd-show-skill
   "Show full content of a skill as JSON."
   [{:keys [category _arguments]}]
-  (try
-    (let [skill-name (first _arguments)]
-      (when (or (nil? skill-name) (str/blank? skill-name))
-        (print-error "Skill name cannot be empty")
-        (System/exit 1))
-      (let [config (config/load-config)
-            db (db/get-db config)
-            skill (search/get-skill-by-name db skill-name :category category)]
-        (if skill
-          (println (json/write-value-as-string skill
-                                               (json/object-mapper {:pretty true})))
-          (do
-            (print-error (str "Skill not found: " skill-name
-                              (when category (str " in category " category))))
-            (System/exit 1)))))
-    (catch Exception e
-      (print-error (str "Failed to show skill: " (.getMessage e)))
-      (System/exit 1))))
+  (let [skill-name (first _arguments)]
+    (validate-non-blank skill-name "Skill name cannot be empty")
+    (handle-command-errors
+     "Show skill"
+     (fn []
+       (let [[_config db] (load-config-and-db)
+             skill (search/get-skill-by-name db skill-name :category category)]
+         (if skill
+           (println (json/write-value-as-string skill
+                                                (json/object-mapper {:pretty true})))
+           (do
+             (print-error (str "Skill not found: " skill-name
+                               (when category (str " in category " category))))
+             (System/exit 1))))))))
 
 ;;; CLI configuration
 

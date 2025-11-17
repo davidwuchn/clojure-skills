@@ -82,7 +82,7 @@
   (let [dir (io/file prompts-dir)]
     (when (.exists dir)
       (->> (file-seq dir)
-           (filter #(and (.isFile %)
+           (filter #(and (.isFile ^File %)
                          (str/ends-with? (.getName ^File %) ".md")))
            (map #(str (.getPath ^File %)))
            (sort)))))
