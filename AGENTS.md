@@ -12,9 +12,11 @@ commit messages, or any output. Use clear, professional text instead.
 ## Table of Contents
 
 - [Project Overview](#project-overview)
+- [Essential Tools for Agents](#essential-tools-for-agents)
 - [Repository Structure](#repository-structure)
 - [Key Technologies](#key-technologies)
 - [Common Tasks](#common-tasks)
+- [Task Tracking System](#task-tracking-system)
 - [Development Workflow](#development-workflow)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
@@ -37,39 +39,173 @@ be mixed and composed to create effective coding agents.
 
 ---
 
+## Essential Tools for Agents
+
+As an LLM agent working with this codebase, you have access to powerful MCP tools. Understanding and using these correctly is critical to your effectiveness.
+
+### clojure_eval - Your Primary Development Tool
+
+**The `clojure_eval` MCP tool evaluates Clojure code in a live REPL.** This is your most important tool for development.
+
+**When to use:**
+- **Before editing any file** - Always test code in the REPL first
+- **Exploring libraries** - Discover what functions are available and how they work
+- **Debugging** - Test hypotheses and inspect data structures
+- **Validating logic** - Ensure code works before committing to files
+- **Learning APIs** - Experiment with new libraries interactively
+
+**Core workflow:**
+```clojure
+;; 1. Explore - Discover what's available
+(clj-mcp.repl-tools/list-ns)                    ; What namespaces exist?
+(clj-mcp.repl-tools/list-vars 'clojure.string)  ; What functions in namespace?
+(clj-mcp.repl-tools/doc-symbol 'map)            ; How does this function work?
+
+;; 2. Prototype - Test your solution
+(defn validate-email [email]
+  (and (string? email)
+       (re-matches #".+@.+\..+" email)))
+
+;; 3. Validate - Test edge cases
+(validate-email "user@example.com")  ; => true
+(validate-email "invalid")           ; => false
+(validate-email nil)                 ; => false
+
+;; 4. Commit - Only after validation, use clojure_edit to save to file
+
+;; 5. Reload - After file changes, reload and verify
+(require '[my.namespace :reload])
+(my.namespace/validate-email "test@example.com")
+```
+
+**Critical principle: NEVER edit files without testing in clojure_eval first.**
+
+**Available REPL helper functions:**
+- `clj-mcp.repl-tools/list-ns` - List all namespaces
+- `clj-mcp.repl-tools/list-vars` - List functions in a namespace
+- `clj-mcp.repl-tools/doc-symbol` - Show function documentation
+- `clj-mcp.repl-tools/source-symbol` - View function source code
+- `clj-mcp.repl-tools/find-symbols` - Search for symbols by pattern
+- `clj-mcp.repl-tools/complete` - Autocomplete symbol names
+- `clj-mcp.repl-tools/help` - Show all available helpers
+
+### clojure-skills CLI - Your Knowledge Database
+
+**The `clojure-skills` CLI tool provides searchable access to 70+ skills stored in a SQLite database with FTS5 full-text search.**
+
+**Quick commands:**
+```bash
+# Search for skills by topic
+clojure-skills search "database queries"
+clojure-skills search "validation" -t skills
+
+# List all skills by category
+clojure-skills list-skills
+clojure-skills list-skills -c libraries/database
+
+# View detailed skill content
+clojure-skills show-skill "malli"
+clojure-skills show-skill "next_jdbc" -c libraries/database
+
+# Get statistics
+clojure-skills stats
+```
+
+**When to use:**
+- You need to learn about a specific library (e.g., "How do I use Malli?")
+- You're unsure what tools are available for a problem domain
+- You want to see all skills in a category
+- You need detailed examples for a library
+
+**Integration with development:**
+```bash
+# 1. Find relevant skills
+clojure-skills search "HTTP server" -t skills
+
+# 2. View detailed content
+clojure-skills show-skill "http_kit" | jq -r '.content'
+
+# 3. Use knowledge in your code
+# (Now you know http-kit patterns to test in clojure_eval)
+```
+
+### Other MCP Tools
+
+**File operations:**
+- `clojure-mcp_read_file` - Read and explore Clojure files (with collapsed view)
+- `clojure_edit` - Surgically edit top-level forms in Clojure files
+- `clojure_edit_replace_sexp` - Replace specific expressions
+- `clojure-mcp_file_write` - Write entire files (for new files or major rewrites)
+
+**Code analysis:**
+- `clojure-lsp API` - Static analysis, find references, clean namespaces, rename symbols
+
+**Shell operations:**
+- `clojure-mcp_bash` - Execute shell commands
+
+**Workflow pattern:**
+1. Use `clojure-skills search` to find relevant knowledge
+2. Use `clojure_eval` to prototype and test code
+3. Use `clojure_edit` to commit working code to files
+4. Use `clojure_eval` again to reload and verify changes
+
+---
+
 ## Repository Structure
 
 ```
 clojure-skills/
-├── skills/              # Modular skill fragments
+├── skills/              # Modular skill fragments (60+ skills)
 │   ├── language/        # Core Clojure language skills
 │   │   ├── clojure_intro.md
 │   │   └── clojure_repl.md
 │   ├── clojure_mcp/     # MCP integration skills
 │   │   └── clojure_eval.md
-│   └── http_servers/    # HTTP server skills
-│       └── http_kid.md
+│   ├── libraries/       # Library skills organized by category
+│   │   ├── data_validation/
+│   │   ├── database/
+│   │   ├── http_servers/
+│   │   └── [30+ more categories]
+│   ├── testing/         # Test framework skills
+│   └── tooling/         # Development tool skills
 ├── prompts/             # Composed prompts
 │   └── clojure_build.md # Example prompt composition
 ├── prompt_templates/    # Templates for creating prompts
 │   └── template.md
+├── resources/           # Resources
+│   └── migrations/      # Database migrations
+│       ├── 001-initial-schema.edn
+│       └── 002-task-tracking.edn
 ├── _build/              # Generated/built files (git-ignored)
 │   └── clojure_build.md
 ├── src/                 # Source code
+│   └── clojure_skills/
+│       ├── cli.clj      # CLI commands
+│       ├── search.clj   # FTS5 search
+│       ├── sync.clj     # Sync skills to database
+│       └── db/          # Database operations
+│           ├── core.clj
+│           ├── plans.clj    # Implementation plans
+│           └── tasks.clj    # Task tracking
 ├── test/                # Test files
+├── clojure-skills.db    # SQLite database (FTS5 search + task tracking)
 ├── _typos.toml          # Typos spell checker config
 ├── bb.edn               # Babashka task definitions
 ├── deps.edn             # Clojure dependencies
-├── Makefile             # Build automation
 └── readme.md            # Project documentation
 ```
 
-### Key Directories
+### Key Directories and Files
 
-- **`skills/`**: Self-contained markdown files describing specific capabilities
+- **`skills/`**: 60+ self-contained markdown files organized by category
 - **`prompts/`**: YAML frontmatter + markdown that compose multiple skills
-- **`_build/`**: Generated output from prompts (created by `make` or `pandoc`)
-- **`src/`**: Clojure source code
+- **`_build/`**: Generated output from prompts (created by `bb build` or `pandoc`)
+- **`src/clojure_skills/`**: CLI tool source code
+  - `cli.clj` - Command-line interface (search, plans, tasks)
+  - `search.clj` - FTS5 full-text search implementation
+  - `db/` - Database operations (skills, plans, tasks)
+- **`resources/migrations/`**: Ragtime database migrations
+- **`clojure-skills.db`**: SQLite database with FTS5 search and task tracking
 - **`test/`**: Test files using Kaocha
 
 ---
@@ -84,6 +220,8 @@ clojure-skills/
 | **Babashka** | Task runner & scripting | [babashka.org](https://babashka.org) |
 | **deps.edn** | Dependency management | [Deps and CLI Guide](https://clojure.org/guides/deps_and_cli) |
 | **Kaocha** | Test runner | [github.com/lambdaisland/kaocha](https://github.com/lambdaisland/kaocha) |
+| **SQLite** | Skills database with FTS5 search | [sqlite.org](https://sqlite.org) |
+| **clojure-skills CLI** | Skill search and management | See "Essential Tools" section |
 
 ### Development Tools
 
@@ -146,6 +284,67 @@ cli-matic/cli-matic       ; Command-line parsing
 ---
 
 ## Common Tasks
+
+### Using the clojure-skills CLI
+
+The CLI provides searchable access to the skills database and task tracking.
+
+**Note:** You can invoke commands using either:
+- `clojure-skills <command>` - Direct invocation (requires binary in PATH)
+- `bb main <command>` - Via Babashka task runner
+- `clojure -M:jvm-base -m clojure-skills.main <command>` - Via Clojure CLI
+
+Most examples use `clojure-skills` or `bb main` for brevity.
+
+#### Skills Management Commands
+
+```bash
+# Initialize database (first time only)
+clojure-skills init
+
+# Search for skills
+clojure-skills search "http server"
+clojure-skills search "validation" -t skills
+clojure-skills search "malli" -c libraries/data_validation
+
+# List skills
+clojure-skills list-skills                          # All skills
+clojure-skills list-skills -c libraries/database    # By category
+
+# View skill details (outputs JSON)
+clojure-skills show-skill "malli"
+clojure-skills show-skill "next_jdbc" | jq -r '.content'
+
+# Database statistics
+clojure-skills stats
+
+# Sync skills from filesystem to database
+clojure-skills sync
+
+# Reset database (destructive!)
+clojure-skills reset-db --force
+```
+
+#### Task Tracking Quick Reference
+
+See the [Task Tracking System](#task-tracking-system) section for complete documentation with all arguments.
+
+```bash
+# Plans
+bb main create-plan --name "feature-name" --title "Title"
+bb main list-plans
+bb main show-plan 1                  # By ID
+bb main show-plan "feature-name"     # By name
+bb main update-plan 1 --status "completed"
+bb main complete-plan 1
+
+# Task Lists
+bb main create-task-list 1 --name "Phase 1"    # 1 = plan ID
+
+# Tasks
+bb main create-task 1 --name "Task name"       # 1 = task list ID
+bb main complete-task 1                        # 1 = task ID
+```
 
 ### Running Tasks
 
@@ -538,6 +737,286 @@ bb build-compressed clojure_skill_builder --ratio 10
 
 ---
 
+## Task Tracking System
+
+The clojure-skills CLI includes a task tracking system for managing complex, multi-step implementations. This is especially useful for collaborative work between LLM agents and humans.
+
+### Core Concepts
+
+**Three-level hierarchy:**
+1. **Implementation Plans** - Top-level project or feature
+2. **Task Lists** - Groups of related tasks (phases, milestones)
+3. **Tasks** - Individual work items that can be completed
+
+**Use cases:**
+- Breaking down complex features into manageable steps
+- Tracking progress on multi-day implementations
+- Coordinating work between agents and humans
+- Recording implementation decisions and status
+
+### Command Reference
+
+All task tracking commands are invoked through `bb main` or `clojure -M:jvm-base -m clojure-skills.main`.
+
+#### Managing Plans
+
+**Create a new plan:**
+```bash
+bb main create-plan \
+  --name "unique-plan-name" \
+  [--title "Human-Readable Title"] \
+  [--description "Detailed description"] \
+  [--content "Markdown content"] \
+  [--status "draft|in-progress|completed|archived"] \
+  [--created-by "creator-identifier"] \
+  [--assigned-to "assignee-identifier"]
+```
+
+**Arguments:**
+- `--name` (REQUIRED) - Unique identifier for the plan (used in commands)
+- `--title` (optional) - Human-readable title
+- `--description` (optional) - Brief description of the plan
+- `--content` (optional) - Full markdown content explaining the plan
+- `--status` (optional) - Plan status (default: "draft")
+- `--created-by` (optional) - Who created the plan (e.g., "agent", "human")
+- `--assigned-to` (optional) - Who is responsible for the plan
+
+**Example:**
+```bash
+bb main create-plan \
+  --name "api-refactor" \
+  --title "Refactor REST API" \
+  --description "Modernize API with better validation and error handling" \
+  --status "in-progress" \
+  --created-by "agent" \
+  --assigned-to "human"
+```
+
+**List plans:**
+```bash
+bb main list-plans [--status STATUS] [--created-by USER] [--assigned-to USER]
+```
+
+**Arguments:**
+- `--status` (optional) - Filter by status (draft, in-progress, completed, archived)
+- `--created-by` (optional) - Filter by creator
+- `--assigned-to` (optional) - Filter by assignee
+
+**Examples:**
+```bash
+bb main list-plans                        # List all plans
+bb main list-plans --status "in-progress" # Only in-progress plans
+bb main list-plans --assigned-to "agent"  # Plans assigned to agent
+```
+
+**Show plan details:**
+```bash
+bb main show-plan <PLAN-ID-OR-NAME>
+```
+
+**Arguments:**
+- `<PLAN-ID-OR-NAME>` (REQUIRED, positional) - Numeric plan ID or unique plan name
+
+**Examples:**
+```bash
+bb main show-plan 1              # Show plan by ID
+bb main show-plan "api-refactor" # Show plan by name
+```
+
+**Update a plan:**
+```bash
+bb main update-plan <PLAN-ID> \
+  [--name "new-name"] \
+  [--title "New Title"] \
+  [--description "New description"] \
+  [--content "New content"] \
+  [--status "new-status"] \
+  [--assigned-to "new-assignee"]
+```
+
+**Arguments:**
+- `<PLAN-ID>` (REQUIRED, positional) - Numeric plan ID
+- All other arguments are optional and update the corresponding field
+
+**Example:**
+```bash
+bb main update-plan 1 \
+  --title "Updated REST API Refactor" \
+  --status "completed"
+```
+
+**Complete a plan:**
+```bash
+bb main complete-plan <PLAN-ID>
+```
+
+**Arguments:**
+- `<PLAN-ID>` (REQUIRED, positional) - Numeric plan ID
+
+**Example:**
+```bash
+bb main complete-plan 1
+```
+
+#### Managing Task Lists
+
+**Create a task list:**
+```bash
+bb main create-task-list <PLAN-ID> \
+  --name "Task List Name" \
+  [--description "Description"] \
+  [--position N]
+```
+
+**Arguments:**
+- `<PLAN-ID>` (REQUIRED, positional) - Numeric plan ID to add this task list to
+- `--name` (REQUIRED) - Name of the task list
+- `--description` (optional) - Description of this task list
+- `--position` (optional) - Numeric position for ordering (default: auto-incremented)
+
+**Example:**
+```bash
+bb main create-task-list 1 \
+  --name "Phase 1: Database Setup" \
+  --description "Create database schema and migrations" \
+  --position 1
+```
+
+#### Managing Tasks
+
+**Create a task:**
+```bash
+bb main create-task <TASK-LIST-ID> \
+  --name "Task Name" \
+  [--description "Description"] \
+  [--position N] \
+  [--assigned-to "assignee"]
+```
+
+**Arguments:**
+- `<TASK-LIST-ID>` (REQUIRED, positional) - Numeric task list ID to add this task to
+- `--name` (REQUIRED) - Name of the task
+- `--description` (optional) - Detailed description of the task
+- `--position` (optional) - Numeric position for ordering (default: auto-incremented)
+- `--assigned-to` (optional) - Who should work on this task
+
+**Example:**
+```bash
+bb main create-task 1 \
+  --name "Create users table migration" \
+  --description "Add migration for users table with email, password_hash, created_at" \
+  --assigned-to "agent" \
+  --position 1
+```
+
+**Complete a task:**
+```bash
+bb main complete-task <TASK-ID>
+```
+
+**Arguments:**
+- `<TASK-ID>` (REQUIRED, positional) - Numeric task ID
+
+**Example:**
+```bash
+bb main complete-task 1
+```
+
+### Example Workflow
+
+**Scenario: Agent receives request to implement a new feature**
+
+```bash
+# 1. Create implementation plan
+# Note: This outputs "Plan ID: X" - use that ID for subsequent commands
+bb main create-plan \
+  --name "user-auth" \
+  --title "Add User Authentication" \
+  --description "JWT-based authentication with refresh tokens" \
+  --status "in-progress" \
+  --created-by "agent"
+# Output: Created plan: user-auth
+# Output: Plan ID: 1
+
+# 2. Break down into phases (task lists)
+# Note: Each create-task-list outputs "Created task list: NAME"
+# The task list IDs are auto-incremented (1, 2, 3, 4)
+bb main create-task-list 1 --name "Phase 1: Database Schema" --position 1
+bb main create-task-list 1 --name "Phase 2: Core Logic" --position 2
+bb main create-task-list 1 --name "Phase 3: API Endpoints" --position 3
+bb main create-task-list 1 --name "Phase 4: Testing" --position 4
+
+# 3. Add specific tasks to Phase 1 (task list ID 1)
+# Note: Each create-task outputs "Created task: NAME"
+# The task IDs are auto-incremented (1, 2, 3)
+bb main create-task 1 --name "Create users table migration" --position 1
+bb main create-task 1 --name "Create sessions table migration" --position 2
+bb main create-task 1 --name "Add password hashing utilities" --position 3
+
+# 4. Work through tasks, marking each complete
+bb main complete-task 1  # Task ID 1
+bb main complete-task 2  # Task ID 2
+
+# 5. Check progress - shows plan with all task lists and tasks
+bb main show-plan 1
+
+# 6. When all tasks done, complete the plan
+bb main complete-plan 1
+```
+
+**Getting IDs:**
+- **Plan ID**: Shown after `create-plan` in output: "Plan ID: X"
+- **Task List ID**: Use `show-plan <plan-id>` to see all task list IDs
+- **Task ID**: Use `show-plan <plan-id>` to see all task IDs
+- **Alternative**: Query by name using `show-plan "plan-name"` (plans only)
+
+### CLI Command Reference Table
+
+Complete reference for all task tracking commands:
+
+| Command | Positional Args | Required Options | Optional Options | Description |
+|---------|----------------|------------------|------------------|-------------|
+| `create-plan` | None | `--name` | `--title`, `--description`, `--content`, `--status`, `--created-by`, `--assigned-to` | Create a new implementation plan |
+| `list-plans` | None | None | `--status`, `--created-by`, `--assigned-to` | List plans with optional filters |
+| `show-plan` | `<ID-OR-NAME>` | None | None | Show plan details with all task lists and tasks |
+| `update-plan` | `<PLAN-ID>` | None | `--name`, `--title`, `--description`, `--content`, `--status`, `--assigned-to` | Update plan fields |
+| `complete-plan` | `<PLAN-ID>` | None | None | Mark plan as completed |
+| `create-task-list` | `<PLAN-ID>` | `--name` | `--description`, `--position` | Create task list in a plan |
+| `create-task` | `<TASK-LIST-ID>` | `--name` | `--description`, `--position`, `--assigned-to` | Create task in a task list |
+| `complete-task` | `<TASK-ID>` | None | None | Mark task as completed |
+
+**Argument Types:**
+- `<ID>` - Numeric ID (integer)
+- `<NAME>` - String identifier
+- `<ID-OR-NAME>` - Either numeric ID or string name
+- Status values: `draft`, `in-progress`, `completed`, `archived`
+
+### When to Use Task Tracking
+
+**Use task tracking when:**
+- Implementation requires multiple steps across multiple files
+- You need to coordinate with humans
+- Work spans multiple sessions or days
+- Clear progress tracking is valuable
+- Planning phase would help clarify approach
+
+**Don't use task tracking when:**
+- Simple one-step changes
+- Quick bug fixes
+- Exploratory work where plan isn't clear yet
+- User just wants quick answer, not implementation
+
+### Database Schema
+
+Task tracking uses SQLite tables:
+- `implementation_plans` - Top-level plans with metadata and status
+- `task_lists` - Grouped tasks within plans
+- `tasks` - Individual work items with completion status
+
+All tables include automatic timestamps (created_at, updated_at, completed_at) and support for user assignment.
+
+---
+
 ## Development Workflow
 
 ### 1. Understanding the Codebase
@@ -855,15 +1334,120 @@ bb setup-python           # Install Python dependencies
 
 ## Agent-Specific Tips
 
+### When Asked to Write or Modify Code
+
+**Always follow the clojure_eval-first workflow:**
+
+1. **Explore** - Use clojure_eval to understand the problem space
+   ```clojure
+   ;; What namespaces are available?
+   (clj-mcp.repl-tools/list-ns)
+   
+   ;; What functions exist in the relevant namespace?
+   (clj-mcp.repl-tools/list-vars 'my.namespace)
+   
+   ;; How does this function work?
+   (clj-mcp.repl-tools/doc-symbol 'my.namespace/function-name)
+   ```
+
+2. **Prototype** - Write and test code in clojure_eval
+   ```clojure
+   ;; Test your solution with real data
+   (defn my-function [x]
+     (process x))
+   
+   (my-function test-data)  ; Does it work?
+   ```
+
+3. **Validate** - Test edge cases in clojure_eval
+   ```clojure
+   (my-function nil)     ; Handles nil?
+   (my-function [])      ; Handles empty?
+   (my-function "bad")   ; Handles invalid input?
+   ```
+
+4. **Commit** - Only after validation, use clojure_edit
+   ```clojure
+   ;; Now save the validated function to the file
+   ;; Use clojure_edit tool to add/replace the function
+   ```
+
+5. **Verify** - Reload and test in clojure_eval
+   ```clojure
+   (require '[my.namespace :reload])
+   (my.namespace/my-function test-data)  ; Still works?
+   ```
+
+**NEVER skip step 1-3. Code that hasn't been tested in clojure_eval should not be written to files.**
+
+### When You Need Library Knowledge
+
+1. **Search the skills database first:**
+   ```bash
+   clojure-skills search "library-name"
+   clojure-skills search "problem-domain" -t skills
+   ```
+
+2. **View detailed skill content:**
+   ```bash
+   clojure-skills show-skill "skill-name" | jq -r '.content'
+   ```
+
+3. **Apply knowledge in clojure_eval:**
+   - Read the skill examples
+   - Test them in clojure_eval
+   - Adapt to your specific use case
+   - Validate before committing to files
+
+### When Working on Complex Features
+
+For complex multi-step implementations, use the task tracking system. See [Task Tracking System](#task-tracking-system) for complete documentation.
+
+1. **Create an implementation plan:**
+   ```bash
+   bb main create-plan --name "feature-name" --title "Feature Title"
+   # Note the Plan ID from output
+   ```
+
+2. **Break down into phases (task lists):**
+   ```bash
+   bb main create-task-list <PLAN-ID> --name "Phase 1: Database" --position 1
+   bb main create-task-list <PLAN-ID> --name "Phase 2: Core Logic" --position 2
+   bb main create-task-list <PLAN-ID> --name "Phase 3: API/UI" --position 3
+   bb main create-task-list <PLAN-ID> --name "Phase 4: Testing" --position 4
+   ```
+
+3. **Add specific tasks to each phase:**
+   ```bash
+   # Add tasks to task list (note task list IDs from show-plan)
+   bb main create-task <TASK-LIST-ID> --name "Task name" --position 1
+   ```
+
+4. **Track progress as you work:**
+   ```bash
+   bb main complete-task <TASK-ID>    # Mark tasks complete
+   bb main show-plan <PLAN-ID>        # View progress
+   bb main complete-plan <PLAN-ID>    # When finished
+   ```
+
+5. **Use IDs correctly:**
+   - Plan IDs are shown after `create-plan`
+   - Task list and task IDs are shown in `show-plan` output
+   - You can also query plans by name: `show-plan "feature-name"`
+
+This helps both you and humans understand progress across sessions.
+
 ### When Asked to Add a Skill
 
 1. Check existing skills with `bb list-skills` to avoid duplication
-2. Determine the appropriate category (`language/`, `clojure_mcp/`, etc.)
-3. Create a focused markdown file with YAML frontmatter
-4. Include practical examples
-5. Test any code examples in the REPL
-6. Check spelling with `bb typos`
-7. Verify skill appears in `bb list-skills` output
+2. Use `clojure-skills search` to see if similar skills exist
+3. Determine the appropriate category (`language/`, `clojure_mcp/`, etc.)
+4. Create a focused markdown file with YAML frontmatter
+5. Include practical examples
+6. **Test all code examples with clojure_eval**
+7. Check spelling with `bb typos`
+8. Verify skill appears in `bb list-skills` output
+9. Sync database: `bb main sync`
 
 ### When Asked to Create a Prompt
 
@@ -911,41 +1495,96 @@ bb setup-python           # Install Python dependencies
 
 ### When Debugging
 
-1. Use `bb nrepl` to start a REPL on port 7889
-2. Load the namespace with `(require '[namespace :as alias] :reload)`
-3. Test functions interactively
-4. Use `(clojure.pprint/pprint data)` to inspect data structures
-5. Check logs in structured format (Cambium logging)
+**Primary approach - Use clojure_eval:**
+
+1. **Reproduce the issue:**
+   ```clojure
+   ;; Load the problematic code
+   (require '[problem.namespace :reload])
+   
+   ;; Try to reproduce
+   (problem.namespace/broken-function test-data)
+   ```
+
+2. **Inspect intermediate values:**
+   ```clojure
+   ;; Break down the function to see where it fails
+   (def intermediate (step-1 input))
+   (clojure.pprint/pprint intermediate)
+   
+   (step-2 intermediate)  ; Where does it break?
+   ```
+
+3. **Test hypotheses:**
+   ```clojure
+   ;; Hypothesis: It fails on nil inputs
+   (broken-function nil)  ; Does this fail?
+   
+   ;; Hypothesis: Type mismatch
+   (type result)  ; What type is this actually?
+   ```
+
+4. **Fix and validate:**
+   ```clojure
+   ;; Test the fix
+   (defn fixed-function [x]
+     (when x  ; Add nil check
+       (process x)))
+   
+   (fixed-function nil)      ; Works now?
+   (fixed-function test-data) ; Still works for valid input?
+   ```
+
+5. **Commit fix with clojure_edit only after validation**
+
+**Alternative - nREPL for editor integration:**
+- Use `bb nrepl` to start a REPL on port 7889
+- Connect from your editor (CIDER, Calva, Cursive)
+- Useful for complex debugging sessions
+- But clojure_eval is usually sufficient
 
 ---
 
 ## Summary
 
-This repository is designed for **modular, composable prompt engineering** for Clojure development. Skills are atomic units of knowledge, prompts combine them for specific purposes, and the tooling (Babashka, Make) supports rapid development and testing.
+This repository is designed for **modular, composable prompt engineering** for Clojure development. Skills are atomic units of knowledge, prompts combine them for specific purposes, and the tooling supports rapid, test-driven development.
 
 **Key Principles:**
-- **Modularity**: Skills should be self-contained
+- **REPL-First Development**: Always test with clojure_eval before editing files
+- **Modularity**: Skills should be self-contained and reusable
 - **Composition**: Prompts combine skills for specific goals
-- **Testability**: Code should be tested via REPL and Kaocha
+- **Testability**: Code should be validated in REPL, then tested with Kaocha
 - **Quality**: Use linting, formatting, and spell checking
 - **Documentation**: Keep skills and prompts well-documented
-- **Visibility**: Use `bb list-skills` and `bb list-prompts` for inventory
-- **Automation**: Use `bb watch` for rapid iteration
+- **Searchability**: Use clojure-skills CLI to find relevant knowledge
+- **Task Tracking**: Use plans and tasks for complex implementations
+
+**Essential MCP Tools:**
+- **clojure_eval** - Your primary development tool (test everything here first!)
+- **clojure-skills CLI** - Search and access 70+ skills
+- **clojure_edit** - Commit validated code to files
+- **clojure-mcp_read_file** - Explore codebases
 
 **Essential Commands:**
-- `bb help` - Show all available tasks
-- `bb list-skills` - See all 63 skills with sizes/tokens
-- `bb list-prompts` - See built prompts with statistics
-- `bb watch <name>` - Auto-rebuild on changes
+- `clojure-skills search <topic>` - Find relevant skills
+- `clojure-skills show-skill <name>` - View detailed skill content
+- `bb main create-plan` - Start tracking complex implementations
+- `bb list-skills` - See all available skills with metadata
 - `bb build <name>` - Build a specific prompt
-- `bb ci` - Run full quality pipeline
-- `bb test` - Run tests with timing
-- `bb lint` - Lint with timing
-- `bb typos` - Check spelling
+- `bb ci` - Run full quality pipeline (fmt, lint, typos, test)
+- `bb watch <name>` - Auto-rebuild on changes
+
+**Core Workflow:**
+1. **Search** - Find relevant skills with `clojure-skills search`
+2. **Explore** - Understand the problem with clojure_eval
+3. **Prototype** - Write and test code in clojure_eval
+4. **Validate** - Test edge cases in clojure_eval
+5. **Commit** - Use clojure_edit to save validated code
+6. **Verify** - Reload and test again in clojure_eval
 
 **When in doubt:**
-- Run `bb help` for comprehensive task list
-- Check `bb list-skills` to see what's available
-- Use `bb watch` for iterative development
-- Run `bb ci` before committing
-- Test in the REPL with `bb nrepl`
+- **Before editing any file**: Test it in clojure_eval first
+- **Need library knowledge**: Use `clojure-skills search`
+- **Complex feature**: Create an implementation plan
+- **Debugging**: Use clojure_eval to test hypotheses
+- **Before committing**: Run `bb ci` to ensure quality
