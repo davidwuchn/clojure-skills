@@ -10,7 +10,8 @@
    [clojure-skills.test-utils :as tu]))
 
 ;; Use shared test database fixture with dynamic binding
-(use-fixtures :each (tu/with-test-db-fixture {:in-memory? true}))
+;; Use file-based database since in-memory doesn't play well with Ragtime
+(use-fixtures :each (tu/with-test-db-fixture {:in-memory? false}))
 
 ;; ------------------------------------------------------------
 ;; Schema Tests
@@ -341,13 +342,14 @@
                        VALUES (?, ?, ?, ?, ?, ?)"
                       "/test/lifecycle-3.md" "test" "lifecycle-3" "Test content 3" "hash3" 300])
 
+      ;; Query in DESC order gives us most recent first: [skill-3-id, skill-2-id, skill-1-id]
       (let [skills (jdbc/execute! tu/*test-db* ["SELECT id FROM skills ORDER BY id DESC LIMIT 3"])
             skill-ids (mapv :skills/id skills)]
 
         ;; Start with no associations
         (is (empty? (plan-skills/list-plan-skills tu/*test-db* plan-id)))
 
-        ;; Associate first skill
+        ;; Associate first skill (skill-3-id) at position 1
         (plan-skills/associate-skill-with-plan tu/*test-db*
                                                {:plan-id plan-id
                                                 :skill-id (nth skill-ids 0)
@@ -356,7 +358,7 @@
         ;; Verify one skill
         (is (= 1 (count (plan-skills/list-plan-skills tu/*test-db* plan-id))))
 
-        ;; Associate second skill
+        ;; Associate second skill (skill-2-id) at position 2
         (plan-skills/associate-skill-with-plan tu/*test-db*
                                                {:plan-id plan-id
                                                 :skill-id (nth skill-ids 1)
@@ -365,24 +367,27 @@
         ;; Verify two skills
         (is (= 2 (count (plan-skills/list-plan-skills tu/*test-db* plan-id))))
 
-        ;; Associate third skill
+        ;; Associate third skill (skill-1-id) at position 3
         (plan-skills/associate-skill-with-plan tu/*test-db*
                                                {:plan-id plan-id
                                                 :skill-id (nth skill-ids 2)
                                                 :position 3})
 
         ;; Verify three skills in correct order
+        ;; skill-ids is [skill-3-id, skill-2-id, skill-1-id] (DESC order)
+        ;; We associated them in that order with positions [1, 2, 3]
+        ;; So when we query back ordered by position, we should get the same order
         (let [skills-result (plan-skills/list-plan-skills tu/*test-db* plan-id)]
           (is (= 3 (count skills-result)))
           (is (= [1 2 3] (map :plan_skills/position skills-result)))
-          (is (= (reverse skill-ids) (map :skills/id skills-result))))
+          (is (= skill-ids (map :skills/id skills-result))))
 
-        ;; Dissociate middle skill
+        ;; Dissociate middle skill (skill-2-id)
         (plan-skills/dissociate-skill-from-plan tu/*test-db*
                                                 {:plan-id plan-id
                                                  :skill-id (nth skill-ids 1)})
 
-        ;; Verify two skills remain
+        ;; Verify two skills remain (skill-3-id and skill-1-id)
         (let [skills-result (plan-skills/list-plan-skills tu/*test-db* plan-id)]
           (is (= 2 (count skills-result)))
           (is (= [(nth skill-ids 0) (nth skill-ids 2)]

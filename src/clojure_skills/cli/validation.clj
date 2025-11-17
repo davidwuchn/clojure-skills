@@ -1,6 +1,7 @@
 (ns clojure-skills.cli.validation
   "CLI argument validation and coercion using Malli."
   (:require
+   [clojure.string :as str]
    [malli.core :as m]
    [malli.error :as me]
    [malli.transform :as mt]))
@@ -105,6 +106,16 @@
   [:map
    [:id :int]])
 
+(def show-task-list-args-schema
+  "Schema for show-task-list command arguments."
+  [:map
+   [:id :int]])
+
+(def show-task-args-schema
+  "Schema for show-task command arguments."
+  [:map
+   [:id :int]])
+
 ;; ------------------------------------------------------------
 ;; Validation Functions
 ;; ------------------------------------------------------------
@@ -148,4 +159,4 @@
   (let [error-lines (for [[field msgs] errors
                           msg msgs]
                       (str "  - " (name field) ": " msg))]
-    (str "Validation errors:\n" (clojure.string/join "\n" error-lines))))
+    (str "Validation errors:\n" (str/join "\n" error-lines))))

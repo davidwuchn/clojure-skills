@@ -391,10 +391,11 @@
                  (println)
                  (println (bling/bling [:bold "Task Lists:"]))
                  (doseq [task-list task-lists]
-                   (println (str "- " (:task_lists/name task-list)))
+                   (println (str "- [" (:task_lists/id task-list) "] " (:task_lists/name task-list)))
                    (let [list-tasks (tasks/list-tasks-for-list db (:task_lists/id task-list))]
                      (doseq [task list-tasks]
                        (println (str "  " (if (= 1 (:tasks/completed task)) "✓" "○") " "
+                                     "[" (:tasks/id task) "] "
                                      (:tasks/name task)))))))))
            (do
              (print-error (str "Plan not found: " plan-id-or-name))
@@ -555,6 +556,50 @@
                (tasks/delete-task-list db list-id-coerced)
                (print-success (str "Deleted task list: " (:task_lists/name task-list)))))))))))
 
+(defn cmd-show-task-list
+  "Show detailed information about a task list."
+  [{:keys [_arguments]}]
+  (let [list-id (first _arguments)]
+    (validate-non-blank list-id "Task list ID cannot be empty")
+    (handle-command-errors
+     "Show task list"
+     (fn []
+       (let [[_config db] (load-config-and-db)
+             ;; Validate and coerce the ID
+             args (v/coerce-and-validate! v/show-task-list-args-schema {:id list-id})
+             list-id-coerced (:id args)
+             task-list (tasks/get-task-list-by-id db list-id-coerced)]
+         (if task-list
+           (do
+             (println)
+             (println (bling/bling [:bold (:task_lists/name task-list)]))
+             (println (str "ID: " (:task_lists/id task-list)))
+             (println (str "Plan ID: " (:task_lists/plan_id task-list)))
+             (when (:task_lists/description task-list)
+               (println (str "Description: " (:task_lists/description task-list))))
+             (when (:task_lists/position task-list)
+               (println (str "Position: " (:task_lists/position task-list))))
+             (println (str "Created at: " (:task_lists/created_at task-list)))
+             (when (:task_lists/updated_at task-list)
+               (println (str "Updated at: " (:task_lists/updated_at task-list))))
+
+             ;; Show tasks in this list
+             (let [list-tasks (tasks/list-tasks-for-list db list-id-coerced)]
+               (when (seq list-tasks)
+                 (println)
+                 (println (bling/bling [:bold "Tasks:"]))
+                 (doseq [task list-tasks]
+                   (println (str "  " (if (= 1 (:tasks/completed task)) "✓" "○") " "
+                                 "[" (:tasks/id task) "] "
+                                 (:tasks/name task)))
+                   (when (:tasks/description task)
+                     (println (str "      " (:tasks/description task))))
+                   (when (:tasks/assigned_to task)
+                     (println (str "      Assigned to: " (:tasks/assigned_to task))))))))
+           (do
+             (print-error (str "Task list not found: " list-id))
+             (*exit-fn* 1))))))))
+
 (defn cmd-create-task
   "Create a task in a task list."
   [{:keys [_arguments name description position assigned-to]}]
@@ -633,6 +678,45 @@
              ;; Perform deletion
              (tasks/delete-task db task-id-coerced)
              (print-success (str "Deleted task: " (:tasks/name task))))))))))
+
+(defn cmd-show-task
+  "Show detailed information about a task."
+  [{:keys [_arguments]}]
+  (let [task-id (first _arguments)]
+    (validate-non-blank task-id "Task ID cannot be empty")
+    (handle-command-errors
+     "Show task"
+     (fn []
+       (let [[_config db] (load-config-and-db)
+             ;; Validate and coerce the ID
+             args (v/coerce-and-validate! v/show-task-args-schema {:id task-id})
+             task-id-coerced (:id args)
+             task (tasks/get-task-by-id db task-id-coerced)]
+         (if task
+           (do
+             (println)
+             (println (bling/bling [:bold (:tasks/name task)]))
+             (println (str "ID: " (:tasks/id task)))
+             (println (str "Task List ID: " (:tasks/list_id task)))
+             (println (str "Status: " (if (= 1 (:tasks/completed task)) "Completed" "Not completed")))
+             (when (:tasks/description task)
+               (println)
+               (println (bling/bling [:underline "Description:"]))
+               (println (:tasks/description task)))
+             (when (:tasks/assigned_to task)
+               (println)
+               (println (str "Assigned to: " (:tasks/assigned_to task))))
+             (when (:tasks/position task)
+               (println (str "Position: " (:tasks/position task))))
+             (println)
+             (println (str "Created at: " (:tasks/created_at task)))
+             (when (:tasks/updated_at task)
+               (println (str "Updated at: " (:tasks/updated_at task))))
+             (when (:tasks/completed_at task)
+               (println (str "Completed at: " (:tasks/completed_at task)))))
+           (do
+             (print-error (str "Task not found: " task-id))
+             (*exit-fn* 1))))))))
 
 (defn cmd-associate-skill
   "Associate a skill with an implementation plan."
@@ -908,6 +992,14 @@
              :default false}]
      :runs cmd-delete-task-list}
 
+    {:command "show-task-list"
+     :description "Show detailed task list information"
+     :args [{:arg "list-id"
+             :as "Task list ID"
+             :type :string
+             :required true}]
+     :runs cmd-show-task-list}
+
     {:command "create-task"
      :description "Create a task in a task list"
      :args [{:arg "list-id"
@@ -949,6 +1041,14 @@
              :type :with-flag
              :default false}]
      :runs cmd-delete-task}
+
+    {:command "show-task"
+     :description "Show detailed task information"
+     :args [{:arg "task-id"
+             :as "Task ID"
+             :type :string
+             :required true}]
+     :runs cmd-show-task}
 
     ;; Plan-skill associations
     {:command "associate-skill"

@@ -5,6 +5,7 @@
 
   Status values: draft, in-progress, completed, archived, cancelled"
   (:require
+   [clojure.string :as str]
    [honey.sql :as sql]
    [honey.sql.helpers :as h]
    [malli.core :as m]
@@ -269,8 +270,8 @@
                                :id id
                                :update-map update-map})))
           ;; Build SET clause dynamically
-          setters (map (fn [[k v]] (str (name k) " = ?")) fields)
-          set-clause (clojure.string/join ", " setters)
+          setters (map (fn [[k _]] (str (name k) " = ?")) fields)
+          set-clause (str/join ", " setters)
           values (vals fields)
           sql-str (str "UPDATE implementation_plans SET "
                        set-clause

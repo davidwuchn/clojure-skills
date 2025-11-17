@@ -112,18 +112,20 @@ clojure-skills stats
 ```
 
 **When to use:**
+
 - You need to learn about a specific library (e.g., "How do I use Malli?")
 - You're unsure what tools are available for a problem domain
 - You want to see all skills in a category
 - You need detailed examples for a library
 
 **Integration with development:**
+
 ```bash
 # 1. Find relevant skills
 clojure-skills search "HTTP server" -t skills
 
 # 2. View detailed content
-clojure-skills show-skill "http_kit" | jq -r '.content'
+clojure-skills show-skill "http_kit"
 
 # 3. Use knowledge in your code
 # (Now you know http-kit patterns to test in clojure_eval)
@@ -132,18 +134,22 @@ clojure-skills show-skill "http_kit" | jq -r '.content'
 ### Other MCP Tools
 
 **File operations:**
+
 - `clojure-mcp_read_file` - Read and explore Clojure files (with collapsed view)
 - `clojure_edit` - Surgically edit top-level forms in Clojure files
 - `clojure_edit_replace_sexp` - Replace specific expressions
 - `clojure-mcp_file_write` - Write entire files (for new files or major rewrites)
 
 **Code analysis:**
+
 - `clojure-lsp API` - Static analysis, find references, clean namespaces, rename symbols
 
 **Shell operations:**
+
 - `clojure-mcp_bash` - Execute shell commands
 
 **Workflow pattern:**
+
 1. Use `clojure-skills search` to find relevant knowledge
 2. Use `clojure_eval` to prototype and test code
 3. Use `clojure_edit` to commit working code to files
@@ -332,9 +338,11 @@ clojure-skills complete-plan 1
 
 # Task Lists
 clojure-skills create-task-list 1 --name "Phase 1"    # 1 = plan ID
+clojure-skills show-task-list 1                       # Show task list details
 
 # Tasks
 clojure-skills create-task 1 --name "Task name"       # 1 = task list ID
+clojure-skills show-task 1                            # Show task details
 clojure-skills complete-task 1                        # 1 = task ID
 
 # Delete commands (all require --force flag)
@@ -466,18 +474,80 @@ bb nrepl
 
 ### Testing
 
+#### REPL-Based Testing (Primary Method)
+
+For test-driven development, use clojure_eval with Kaocha:
+
+```clojure
+;; Using clojure_eval tool (for agents)
+
+;; 1. Load dev namespace
+(require '[dev :refer :all])
+
+;; 2. Run all tests
+(k/run-all)
+
+;; 3. Run specific test namespace
+(k/run 'clojure-skills.db.migrate-test)
+
+;; 4. Run specific test
+(k/run 'clojure-skills.db.migrate-test/test-migrate-db)
+
+;; 5. Reload code after changes
+(refresh)
+```
+
+**For interactive REPL (humans):**
+
 ```bash
-# Run all tests
+# 1. Start nREPL server
+bb nrepl
+
+# 2. Connect from your editor (CIDER, Calva, Cursive)
+
+# 3. Use the same commands as above in your connected REPL
+```
+
+**Available functions in `dev` namespace:**
+- `(k/run-all)` - Run all tests
+- `(k/run 'namespace)` - Run all tests in a namespace
+- `(k/run 'namespace/test-var)` - Run a specific test
+- `(refresh)` - Reload changed namespaces
+
+#### Command Line Testing (Alternative)
+
+```bash
+# Run all tests from command line
+clojure -M:jvm-base:dev:test unit
+
+# Or use Babashka task
 bb test
-# or
-clojure -M:jvm-base:dev:test
 
 # Run tests with coverage
 clojure -M:dev:test -m kaocha.runner --plugin kaocha.plugin/cloverage
-
-# Run specific test namespace
-clojure -M:dev:test -m kaocha.runner --focus clojure-skills.main-test
 ```
+
+#### Test Output
+
+Tests use Kaocha with documentation reporter. Output shows:
+- Test namespace names
+- Individual test names with descriptions
+- Pass/fail status with timing
+- Total: X tests, Y assertions, Z failures/errors
+
+#### Common Test Issues
+
+**"No such table: ragtime_migrations"**
+- Cause: In-memory SQLite databases don't share state with Ragtime
+- Solution: Tests now use file-based databases with automatic cleanup
+
+**"Unable to resolve var: tx/with-transaction"**
+- Cause: Wrong namespace for `with-transaction`
+- Solution: Fixed - use `jdbc/with-transaction` from `next.jdbc`
+
+**Test database files not cleaning up**
+- All test fixtures now properly clean up temporary database files
+- Files are named: `test-{namespace}-{uuid}.db`
 
 ### New and Improved Tasks
 
@@ -817,6 +887,14 @@ clojure-skills show-plan 1              # Show plan by ID
 clojure-skills show-plan "api-refactor" # Show plan by name
 ```
 
+**Output includes:**
+- Plan metadata (ID, name, status, title, description, assignees, timestamps)
+- Associated skills with positions
+- Task lists with IDs: `[ID] Task List Name`
+- Tasks with IDs and completion status: `✓ [ID] Task Name` or `○ [ID] Task Name`
+
+This hierarchical view shows all IDs needed to use `show-task-list` and `show-task` commands.
+
 **Update a plan:**
 ```bash
 clojure-skills update-plan <PLAN-ID> \
@@ -876,6 +954,25 @@ clojure-skills create-task-list 1 \
   --position 1
 ```
 
+**Show a task list:**
+```bash
+clojure-skills show-task-list <TASK-LIST-ID>
+```
+
+**Arguments:**
+- `<TASK-LIST-ID>` (REQUIRED, positional) - Numeric task list ID
+
+**Example:**
+```bash
+clojure-skills show-task-list 1
+```
+
+This displays:
+- Task list name, ID, and plan ID
+- Description and position
+- Creation and update timestamps
+- All tasks in the list with completion status, descriptions, and assignees
+
 #### Managing Tasks
 
 **Create a task:**
@@ -915,6 +1012,27 @@ clojure-skills complete-task <TASK-ID>
 ```bash
 clojure-skills complete-task 1
 ```
+
+**Show a task:**
+```bash
+clojure-skills show-task <TASK-ID>
+```
+
+**Arguments:**
+- `<TASK-ID>` (REQUIRED, positional) - Numeric task ID
+
+**Example:**
+```bash
+clojure-skills show-task 1
+```
+
+This displays:
+- Task name, ID, and task list ID
+- Completion status
+- Description (if present)
+- Assignee (if present)
+- Position
+- Creation, update, and completion timestamps
 
 ### Example Workflow
 
@@ -960,9 +1078,9 @@ clojure-skills complete-plan 1
 
 **Getting IDs:**
 - **Plan ID**: Shown after `create-plan` in output: "Plan ID: X"
-- **Task List ID**: Use `show-plan <plan-id>` to see all task list IDs
-- **Task ID**: Use `show-plan <plan-id>` to see all task IDs
-- **Alternative**: Query by name using `show-plan "plan-name"` (plans only)
+- **Task List ID**: Shown in `show-plan` output as `[ID] Task List Name`
+- **Task ID**: Shown in `show-plan` output as `[ID] Task Name`
+- **Alternative**: Query plans by name using `show-plan "plan-name"`
 
 ### CLI Command Reference Table
 
@@ -977,8 +1095,10 @@ Complete reference for all task tracking commands:
 | `complete-plan` | `<PLAN-ID>` | None | None | Mark plan as completed |
 | `delete-plan` | `<ID-OR-NAME>` | `--force` | None | Delete a plan (cascades to lists and tasks) |
 | `create-task-list` | `<PLAN-ID>` | `--name` | `--description`, `--position` | Create task list in a plan |
+| `show-task-list` | `<TASK-LIST-ID>` | None | None | Show task list details with all tasks |
 | `delete-task-list` | `<TASK-LIST-ID>` | `--force` | None | Delete a task list (cascades to tasks) |
 | `create-task` | `<TASK-LIST-ID>` | `--name` | `--description`, `--position`, `--assigned-to` | Create task in a task list |
+| `show-task` | `<TASK-ID>` | None | None | Show detailed task information |
 | `complete-task` | `<TASK-ID>` | None | None | Mark task as completed |
 | `delete-task` | `<TASK-ID>` | `--force` | None | Delete a single task |
 
@@ -1446,10 +1566,10 @@ bb setup-python           # Install Python dependencies
    ```clojure
    ;; What namespaces are available?
    (clj-mcp.repl-tools/list-ns)
-   
+
    ;; What functions exist in the relevant namespace?
    (clj-mcp.repl-tools/list-vars 'my.namespace)
-   
+
    ;; How does this function work?
    (clj-mcp.repl-tools/doc-symbol 'my.namespace/function-name)
    ```
@@ -1459,7 +1579,7 @@ bb setup-python           # Install Python dependencies
    ;; Test your solution with real data
    (defn my-function [x]
      (process x))
-   
+
    (my-function test-data)  ; Does it work?
    ```
 
@@ -1525,11 +1645,11 @@ For complex multi-step implementations, use the task tracking system. See [Task 
    ```bash
    # Search for relevant skills first
    clojure-skills search "topic" -t skills
-   
+
    # Associate skills that will be needed
    clojure-skills associate-skill <PLAN-ID> "skill-name" --position 1
    clojure-skills associate-skill <PLAN-ID> "another-skill" --position 2
-   
+
    # View associated skills
    clojure-skills list-plan-skills <PLAN-ID>
    ```
@@ -1544,10 +1664,10 @@ For complex multi-step implementations, use the task tracking system. See [Task 
    ```bash
    # Review the plan to see which skills are associated
    clojure-skills show-plan <PLAN-ID>
-   
+
    # Load each skill's content to refresh your knowledge
    clojure-skills show-skill "skill-name" | jq -r '.content' | head -100
-   
+
    # Or search for additional skills as needed
    clojure-skills search "specific-topic" -t skills
    ```
@@ -1635,7 +1755,7 @@ This helps both you and humans understand progress across sessions.
    ```clojure
    ;; Load the problematic code
    (require '[problem.namespace :reload])
-   
+
    ;; Try to reproduce
    (problem.namespace/broken-function test-data)
    ```
@@ -1645,7 +1765,7 @@ This helps both you and humans understand progress across sessions.
    ;; Break down the function to see where it fails
    (def intermediate (step-1 input))
    (clojure.pprint/pprint intermediate)
-   
+
    (step-2 intermediate)  ; Where does it break?
    ```
 
@@ -1653,7 +1773,7 @@ This helps both you and humans understand progress across sessions.
    ```clojure
    ;; Hypothesis: It fails on nil inputs
    (broken-function nil)  ; Does this fail?
-   
+
    ;; Hypothesis: Type mismatch
    (type result)  ; What type is this actually?
    ```
@@ -1664,7 +1784,7 @@ This helps both you and humans understand progress across sessions.
    (defn fixed-function [x]
      (when x  ; Add nil check
        (process x)))
-   
+
    (fixed-function nil)      ; Works now?
    (fixed-function test-data) ; Still works for valid input?
    ```

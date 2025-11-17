@@ -2,8 +2,11 @@
   "Shared test utilities for database testing."
   (:require [clojure.java.io :as io]
             [next.jdbc :as jdbc]
-            [next.jdbc.transaction :as tx]
             [clojure-skills.db.migrate :as migrate]))
+
+;; Dynamic vars for test database - to be used in test namespaces
+(def ^:dynamic *test-db* nil)
+(def ^:dynamic *test-db-spec* nil)
 
 (defn create-test-db-spec
   "Create a test database specification.
@@ -46,8 +49,9 @@
 
        ;; Create datasource for connection reuse (important for in-memory DBs)
        (let [datasource (jdbc/get-datasource db-spec)]
-         ;; Bind to dynamic var and run tests
-         (binding [*test-db* datasource]
+         ;; Bind both datasource and db-spec to dynamic vars and run tests
+         (binding [*test-db* datasource
+                   *test-db-spec* db-spec]
            (f)))
 
        ;; Cleanup (only for file-based databases)
@@ -59,11 +63,8 @@
   [datasource]
   (fn [f]
     ;; Start a transaction that will be rolled back
-    (tx/with-transaction [tx datasource {:isolation :serializable}]
+    (jdbc/with-transaction [tx datasource {:isolation :serializable}]
       (binding [*test-db* tx]
         (f))
       ;; The transaction will be automatically rolled back when exiting the scope
       )))
-
-;; Dynamic var for test database - to be used in test namespaces
-(def ^:dynamic *test-db* nil)

@@ -293,9 +293,15 @@ clojure-skills create-plan \
 clojure-skills list-plans
 clojure-skills list-plans --status "in-progress"
 
-# Show plan details
+# Show plan details (includes task list and task IDs)
 clojure-skills show-plan 1           # By ID
 clojure-skills show-plan api-refactor # By name
+
+# The show-plan output displays:
+# - Plan metadata
+# - Associated skills
+# - Task lists with IDs: [ID] Task List Name
+# - Tasks with IDs: ✓ [ID] Task Name (completed) or ○ [ID] Task Name
 
 # Update plan
 clojure-skills update-plan 1 --status "completed"
@@ -316,6 +322,9 @@ clojure-skills create-task-list 1 \
   --name "Phase 1: Database Setup" \
   --description "Create schema and migrations"
 
+# Show task list details with all tasks
+clojure-skills show-task-list 1
+
 # Delete task list (requires --force)
 clojure-skills delete-task-list 1 --force
 ```
@@ -327,6 +336,9 @@ clojure-skills delete-task-list 1 --force
 clojure-skills create-task 1 \
   --name "Create users table migration" \
   --description "Add migration for users table"
+
+# Show task details
+clojure-skills show-task 1
 
 # Mark task complete
 clojure-skills complete-task 1
@@ -393,12 +405,18 @@ clojure-skills complete-task 1
 clojure-skills complete-task 2
 
 # 7. Check progress
-clojure-skills show-plan 1
+clojure-skills show-plan 1        # Shows all task lists and tasks with IDs
 
-# 8. When finished
+# 8. Review specific task list (optional)
+clojure-skills show-task-list 1   # Shows task list details and all its tasks
+
+# 9. Review specific task (optional)
+clojure-skills show-task 1        # Shows task details with timestamps
+
+# 10. When finished
 clojure-skills complete-plan 1
 
-# 9. Later, if you need to clean up
+# 11. Later, if you need to clean up
 clojure-skills delete-plan 1 --force  # Deletes plan, lists, and tasks
 ```
 
@@ -443,6 +461,58 @@ SUCCESS: Deleted plan: user-auth
 $ clojure-skills delete-plan "user-auth" --force
 SUCCESS: Deleted plan: user-auth
 ```
+
+### Viewing Details
+
+**Show Plan** - Displays complete plan hierarchy:
+
+```bash
+clojure-skills show-plan 1
+```
+
+**Output includes:**
+- Plan metadata (ID, name, status, timestamps)
+- Associated skills with positions
+- Task lists with IDs: `[22] Phase 1: Database Setup`
+- Tasks with IDs and status: `✓ [80] Create users table` or `○ [81] Create sessions table`
+
+This hierarchical view shows all IDs needed for subsequent commands.
+
+**Show Task List** - Displays task list details:
+
+```bash
+clojure-skills show-task-list 22
+```
+
+**Output includes:**
+- Task list name, ID, and plan ID
+- Description and position
+- Creation and update timestamps
+- All tasks in the list with:
+  - Completion status (✓ or ○)
+  - Task ID and name
+  - Task description
+  - Assignee (if set)
+
+**Show Task** - Displays individual task details:
+
+```bash
+clojure-skills show-task 80
+```
+
+**Output includes:**
+- Task name, ID, and task list ID
+- Completion status (Completed/Not completed)
+- Description (formatted)
+- Assignee (if set)
+- Position
+- Creation, update, and completion timestamps
+
+**Getting IDs:**
+- Plan IDs are shown after `create-plan` command
+- Task list and task IDs are shown in `show-plan` output
+- You can query plans by name: `show-plan "plan-name"`
+- Use the IDs from `show-plan` to drill down with `show-task-list` or `show-task`
 
 See [AGENTS.md](AGENTS.md) for complete task tracking documentation.
 

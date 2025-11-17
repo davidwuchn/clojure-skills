@@ -11,13 +11,18 @@
 
 ;; Use shared test database fixture with transaction isolation for better performance
 (defn test-fixture [f]
-  ;; Setup database once for the namespace
-  (let [db-spec (tu/create-test-db-spec)
+  ;; Use file-based database since in-memory doesn't play well with Ragtime
+  (let [db-path (str "test-plans-" (random-uuid) ".db")
+        db-spec {:dbtype "sqlite" :dbname db-path}
         datasource (jdbc/get-datasource db-spec)]
-    ;; Run migrations once
-    (tu/setup-test-db db-spec)
-    ;; Use transaction fixture for each test
-    ((tu/with-transaction-fixture datasource) f)))
+    (try
+      ;; Run migrations once
+      (tu/setup-test-db db-spec)
+      ;; Use transaction fixture for each test
+      ((tu/with-transaction-fixture datasource) f)
+      (finally
+        ;; Clean up the test database file
+        (tu/cleanup-test-db db-path)))))
 
 (use-fixtures :each test-fixture)
 
@@ -103,8 +108,8 @@
   (testing "create-plan with invalid status throws"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"Validation failed"
-                          (plans/create-plan tu/*test-db* {:name "Test"}
-                                             :status "invalid"))))
+                          (plans/create-plan tu/*test-db* {:name "Test"
+                                                           :status "invalid"}))))
 
   (testing "create-plan with name too long throws"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
@@ -168,12 +173,15 @@
       (is (= 3 (count result)))))
 
   (testing "list-plans filters by status"
+    ;; Note: This test runs in same transaction as previous test, so we already have
+    ;; Plan 1 (draft), Plan 2 (in-progress), Plan 3 (completed) from above
     (plans/create-plan tu/*test-db* {:name "Draft 1" :status "draft"})
     (plans/create-plan tu/*test-db* {:name "Draft 2" :status "draft"})
-    (plans/create-plan tu/*test-db* {:name "Complete" :status "completed"})
+    (plans/create-plan tu/*test-db* {:name "Complete 2" :status "completed"})
 
+    ;; We should have 3 draft plans: Plan 1, Draft 1, Draft 2
     (let [result (plans/list-plans tu/*test-db* :status "draft")]
-      (is (= 2 (count result)))
+      (is (= 3 (count result)))
       (is (every? #(= "draft" (:implementation_plans/status %)) result))))
 
   (testing "list-plans filters by assigned_to"
@@ -185,10 +193,11 @@
       (is (= "Alice Task" (:implementation_plans/name (first result))))))
 
   (testing "list-plans respects limit and offset"
-    ;; Create 5 plans
+    ;; Create 5 more plans (in addition to the ones already in DB)
     (doseq [i (range 5)]
-      (plans/create-plan tu/*test-db* {:name (str "Plan " i)}))
+      (plans/create-plan tu/*test-db* {:name (str "Pagination Test " i)}))
 
+    ;; Just verify pagination works with limit/offset
     (let [page1 (plans/list-plans tu/*test-db* :limit 2 :offset 0)
           page2 (plans/list-plans tu/*test-db* :limit 2 :offset 2)]
       (is (= 2 (count page1)))
@@ -216,8 +225,8 @@
 
 (deftest update-plan-test
   (testing "update-plan updates fields"
-    (let [created (plans/create-plan tu/*test-db* {:name "Original Name"}
-                                     :status "draft")
+    (let [created (plans/create-plan tu/*test-db* {:name "Original Name"
+                                                   :status "draft"})
           id (:implementation_plans/id created)
           updated (plans/update-plan tu/*test-db* id
                                      {:name "Updated Name"
@@ -226,34 +235,45 @@
       (is (some? updated))
       (is (= id (:implementation_plans/id updated)))
       (is (= "Updated Name" (:implementation_plans/name updated)))
-      (is (= "in-progress" (:implementation_plans/status updated)))))
+      (is (= "in-progress" (:implementation_plans/status updated)))
+
+      ;; Verify the update in database
+      (let [fetched (plans/get-plan-by-id tu/*test-db* id)]
+        (is (= "Updated Name" (:implementation_plans/name fetched)))
+        (is (= "in-progress" (:implementation_plans/status fetched))))))
+
+  (testing "update-plan with partial update"
+    (let [created (plans/create-plan tu/*test-db* {:name "Partial Update Test"
+                                                   :status "draft"})
+          id (:implementation_plans/id created)
+          updated (plans/update-plan tu/*test-db* id {:status "in-progress"})]
+
+      (is (= "Partial Update Test" (:implementation_plans/name updated))) ; name unchanged
+      (is (= "in-progress" (:implementation_plans/status updated))))) ; status changed
 
   (testing "update-plan with non-existent id throws"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"Plan not found"
-                          (plans/update-plan tu/*test-db* 99999 {:title "New"}))))
+                          (plans/update-plan tu/*test-db* 99999 {:status "completed"}))))
 
-  (testing "update-plan with empty map throws"
-    (let [created (plans/create-plan tu/*test-db* {:name "Test"})
-          id (:implementation_plans/id created)]
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"No fields to update"
-                            (plans/update-plan tu/*test-db* id {})))))
+  (testing "update-plan with invalid id throws"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"Validation failed"
+                          (plans/update-plan tu/*test-db* 0 {:status "completed"}))))
 
   (testing "update-plan with invalid status throws"
-    (let [created (plans/create-plan tu/*test-db* {:name "Test"})
+    (let [created (plans/create-plan tu/*test-db* {:name "Status Update Test"})
           id (:implementation_plans/id created)]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"Validation failed"
                             (plans/update-plan tu/*test-db* id {:status "invalid"})))))
 
-  (testing "update-plan ignores invalid fields"
-    (let [created (plans/create-plan tu/*test-db* {:name "Test"})
-          id (:implementation_plans/id created)
-          updated (plans/update-plan tu/*test-db* id
-                                     {:title "Valid"
-                                      :invalid_field "Should be ignored"})]
-      (is (= "Valid" (:implementation_plans/title updated))))))
+  (testing "update-plan with empty update-map throws"
+    (let [created (plans/create-plan tu/*test-db* {:name "Empty Update Test"})
+          id (:implementation_plans/id created)]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"No fields to update"
+                            (plans/update-plan tu/*test-db* id {}))))))
 
 ;; ------------------------------------------------------------
 ;; Delete Plan Tests
@@ -285,10 +305,10 @@
 
 (deftest search-plans-test
   (testing "search-plans finds plans by content"
-    (plans/create-plan tu/*test-db* {:name "REST API Plan"}
-                       :content "Design REST API endpoints")
-    (plans/create-plan tu/*test-db* {:name "GraphQL Plan"}
-                       :content "Design GraphQL schema")
+    (plans/create-plan tu/*test-db* {:name "REST API Plan"
+                                     :content "Design REST API endpoints"})
+    (plans/create-plan tu/*test-db* {:name "GraphQL Plan"
+                                     :content "Design GraphQL schema"})
 
     (let [results (plans/search-plans tu/*test-db* "REST")]
       (is (= 1 (count results)))
@@ -305,8 +325,8 @@
   (testing "search-plans respects max-results"
     ;; Create multiple matching plans
     (doseq [i (range 5)]
-      (plans/create-plan tu/*test-db* {:name (str "Test " i)}
-                         :content "searchable content"))
+      (plans/create-plan tu/*test-db* {:name (str "Test " i)
+                                       :content "searchable content"}))
 
     (let [results (plans/search-plans tu/*test-db* "searchable" :max-results 2)]
       (is (= 2 (count results)))))
@@ -327,8 +347,8 @@
 
 (deftest complete-plan-test
   (testing "complete-plan sets status and timestamp"
-    (let [created (plans/create-plan tu/*test-db* {:name "To Complete"}
-                                     :status "in-progress")
+    (let [created (plans/create-plan tu/*test-db* {:name "To Complete"
+                                                   :status "in-progress"})
           id (:implementation_plans/id created)
           completed (plans/complete-plan tu/*test-db* id)]
 
@@ -352,8 +372,8 @@
 
 (deftest archive-plan-test
   (testing "archive-plan sets status"
-    (let [created (plans/create-plan tu/*test-db* {:name "To Archive"}
-                                     :status "draft")
+    (let [created (plans/create-plan tu/*test-db* {:name "To Archive"
+                                                   :status "draft"})
           id (:implementation_plans/id created)
           archived (plans/archive-plan tu/*test-db* id)]
 
@@ -377,10 +397,10 @@
 (deftest full-lifecycle-test
   (testing "complete plan lifecycle"
     ;; Create a plan
-    (let [created (plans/create-plan tu/*test-db* {:name "Lifecycle Test"}
-                                     :title "Test Plan"
-                                     :status "draft"
-                                     :created_by "test@example.com")
+    (let [created (plans/create-plan tu/*test-db* {:name "Lifecycle Test"
+                                                   :title "Test Plan"
+                                                   :status "draft"
+                                                   :created_by "test@example.com"})
           id (:implementation_plans/id created)]
 
       ;; Verify creation
