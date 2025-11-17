@@ -289,13 +289,6 @@ cli-matic/cli-matic       ; Command-line parsing
 
 The CLI provides searchable access to the skills database and task tracking.
 
-**Note:** You can invoke commands using either:
-- `clojure-skills <command>` - Direct invocation (requires binary in PATH)
-- `bb main <command>` - Via Babashka task runner
-- `clojure -M:jvm-base -m clojure-skills.main <command>` - Via Clojure CLI
-
-Most examples use `clojure-skills` or `bb main` for brevity.
-
 #### Skills Management Commands
 
 ```bash
@@ -331,19 +324,19 @@ See the [Task Tracking System](#task-tracking-system) section for complete docum
 
 ```bash
 # Plans
-bb main create-plan --name "feature-name" --title "Title"
-bb main list-plans
-bb main show-plan 1                  # By ID
-bb main show-plan "feature-name"     # By name
-bb main update-plan 1 --status "completed"
-bb main complete-plan 1
+clojure-skills create-plan --name "feature-name" --title "Title"
+clojure-skills list-plans
+clojure-skills show-plan 1                  # By ID
+clojure-skills show-plan "feature-name"     # By name
+clojure-skills update-plan 1 --status "completed"
+clojure-skills complete-plan 1
 
 # Task Lists
-bb main create-task-list 1 --name "Phase 1"    # 1 = plan ID
+clojure-skills create-task-list 1 --name "Phase 1"    # 1 = plan ID
 
 # Tasks
-bb main create-task 1 --name "Task name"       # 1 = task list ID
-bb main complete-task 1                        # 1 = task ID
+clojure-skills create-task 1 --name "Task name"       # 1 = task list ID
+clojure-skills complete-task 1                        # 1 = task ID
 ```
 
 ### Running Tasks
@@ -392,7 +385,6 @@ bb ci                     # Run full CI pipeline
 
 # Other Tasks
 bb outdated               # Check for outdated dependencies
-bb main [args]            # Run main CLI
 bb setup-python           # Install Python dependencies
 ```
 
@@ -756,13 +748,11 @@ The clojure-skills CLI includes a task tracking system for managing complex, mul
 
 ### Command Reference
 
-All task tracking commands are invoked through `bb main` or `clojure -M:jvm-base -m clojure-skills.main`.
-
 #### Managing Plans
 
 **Create a new plan:**
 ```bash
-bb main create-plan \
+clojure-skills create-plan \
   --name "unique-plan-name" \
   [--title "Human-Readable Title"] \
   [--description "Detailed description"] \
@@ -783,7 +773,7 @@ bb main create-plan \
 
 **Example:**
 ```bash
-bb main create-plan \
+clojure-skills create-plan \
   --name "api-refactor" \
   --title "Refactor REST API" \
   --description "Modernize API with better validation and error handling" \
@@ -794,7 +784,7 @@ bb main create-plan \
 
 **List plans:**
 ```bash
-bb main list-plans [--status STATUS] [--created-by USER] [--assigned-to USER]
+clojure-skills list-plans [--status STATUS] [--created-by USER] [--assigned-to USER]
 ```
 
 **Arguments:**
@@ -804,14 +794,14 @@ bb main list-plans [--status STATUS] [--created-by USER] [--assigned-to USER]
 
 **Examples:**
 ```bash
-bb main list-plans                        # List all plans
-bb main list-plans --status "in-progress" # Only in-progress plans
-bb main list-plans --assigned-to "agent"  # Plans assigned to agent
+clojure-skills list-plans                        # List all plans
+clojure-skills list-plans --status "in-progress" # Only in-progress plans
+clojure-skills list-plans --assigned-to "agent"  # Plans assigned to agent
 ```
 
 **Show plan details:**
 ```bash
-bb main show-plan <PLAN-ID-OR-NAME>
+clojure-skills show-plan <PLAN-ID-OR-NAME>
 ```
 
 **Arguments:**
@@ -819,13 +809,13 @@ bb main show-plan <PLAN-ID-OR-NAME>
 
 **Examples:**
 ```bash
-bb main show-plan 1              # Show plan by ID
-bb main show-plan "api-refactor" # Show plan by name
+clojure-skills show-plan 1              # Show plan by ID
+clojure-skills show-plan "api-refactor" # Show plan by name
 ```
 
 **Update a plan:**
 ```bash
-bb main update-plan <PLAN-ID> \
+clojure-skills update-plan <PLAN-ID> \
   [--name "new-name"] \
   [--title "New Title"] \
   [--description "New description"] \
@@ -840,14 +830,14 @@ bb main update-plan <PLAN-ID> \
 
 **Example:**
 ```bash
-bb main update-plan 1 \
+clojure-skills update-plan 1 \
   --title "Updated REST API Refactor" \
   --status "completed"
 ```
 
 **Complete a plan:**
 ```bash
-bb main complete-plan <PLAN-ID>
+clojure-skills complete-plan <PLAN-ID>
 ```
 
 **Arguments:**
@@ -855,14 +845,14 @@ bb main complete-plan <PLAN-ID>
 
 **Example:**
 ```bash
-bb main complete-plan 1
+clojure-skills complete-plan 1
 ```
 
 #### Managing Task Lists
 
 **Create a task list:**
 ```bash
-bb main create-task-list <PLAN-ID> \
+clojure-skills create-task-list <PLAN-ID> \
   --name "Task List Name" \
   [--description "Description"] \
   [--position N]
@@ -876,7 +866,7 @@ bb main create-task-list <PLAN-ID> \
 
 **Example:**
 ```bash
-bb main create-task-list 1 \
+clojure-skills create-task-list 1 \
   --name "Phase 1: Database Setup" \
   --description "Create database schema and migrations" \
   --position 1
@@ -886,7 +876,7 @@ bb main create-task-list 1 \
 
 **Create a task:**
 ```bash
-bb main create-task <TASK-LIST-ID> \
+clojure-skills create-task <TASK-LIST-ID> \
   --name "Task Name" \
   [--description "Description"] \
   [--position N] \
@@ -902,7 +892,7 @@ bb main create-task <TASK-LIST-ID> \
 
 **Example:**
 ```bash
-bb main create-task 1 \
+clojure-skills create-task 1 \
   --name "Create users table migration" \
   --description "Add migration for users table with email, password_hash, created_at" \
   --assigned-to "agent" \
@@ -911,7 +901,7 @@ bb main create-task 1 \
 
 **Complete a task:**
 ```bash
-bb main complete-task <TASK-ID>
+clojure-skills complete-task <TASK-ID>
 ```
 
 **Arguments:**
@@ -919,7 +909,7 @@ bb main complete-task <TASK-ID>
 
 **Example:**
 ```bash
-bb main complete-task 1
+clojure-skills complete-task 1
 ```
 
 ### Example Workflow
@@ -929,7 +919,7 @@ bb main complete-task 1
 ```bash
 # 1. Create implementation plan
 # Note: This outputs "Plan ID: X" - use that ID for subsequent commands
-bb main create-plan \
+clojure-skills create-plan \
   --name "user-auth" \
   --title "Add User Authentication" \
   --description "JWT-based authentication with refresh tokens" \
@@ -941,27 +931,27 @@ bb main create-plan \
 # 2. Break down into phases (task lists)
 # Note: Each create-task-list outputs "Created task list: NAME"
 # The task list IDs are auto-incremented (1, 2, 3, 4)
-bb main create-task-list 1 --name "Phase 1: Database Schema" --position 1
-bb main create-task-list 1 --name "Phase 2: Core Logic" --position 2
-bb main create-task-list 1 --name "Phase 3: API Endpoints" --position 3
-bb main create-task-list 1 --name "Phase 4: Testing" --position 4
+clojure-skills create-task-list 1 --name "Phase 1: Database Schema" --position 1
+clojure-skills create-task-list 1 --name "Phase 2: Core Logic" --position 2
+clojure-skills create-task-list 1 --name "Phase 3: API Endpoints" --position 3
+clojure-skills create-task-list 1 --name "Phase 4: Testing" --position 4
 
 # 3. Add specific tasks to Phase 1 (task list ID 1)
 # Note: Each create-task outputs "Created task: NAME"
 # The task IDs are auto-incremented (1, 2, 3)
-bb main create-task 1 --name "Create users table migration" --position 1
-bb main create-task 1 --name "Create sessions table migration" --position 2
-bb main create-task 1 --name "Add password hashing utilities" --position 3
+clojure-skills create-task 1 --name "Create users table migration" --position 1
+clojure-skills create-task 1 --name "Create sessions table migration" --position 2
+clojure-skills create-task 1 --name "Add password hashing utilities" --position 3
 
 # 4. Work through tasks, marking each complete
-bb main complete-task 1  # Task ID 1
-bb main complete-task 2  # Task ID 2
+clojure-skills complete-task 1  # Task ID 1
+clojure-skills complete-task 2  # Task ID 2
 
 # 5. Check progress - shows plan with all task lists and tasks
-bb main show-plan 1
+clojure-skills show-plan 1
 
 # 6. When all tasks done, complete the plan
-bb main complete-plan 1
+clojure-skills complete-plan 1
 ```
 
 **Getting IDs:**
@@ -1308,7 +1298,6 @@ clojure -X:deps tree      # Show dependency tree
 bb outdated               # Check for outdated deps
 
 # Other
-bb main [args]            # Run main CLI
 bb setup-python           # Install Python dependencies
 ```
 
@@ -1405,29 +1394,29 @@ For complex multi-step implementations, use the task tracking system. See [Task 
 
 1. **Create an implementation plan:**
    ```bash
-   bb main create-plan --name "feature-name" --title "Feature Title"
+   clojure-skills create-plan --name "feature-name" --title "Feature Title"
    # Note the Plan ID from output
    ```
 
 2. **Break down into phases (task lists):**
    ```bash
-   bb main create-task-list <PLAN-ID> --name "Phase 1: Database" --position 1
-   bb main create-task-list <PLAN-ID> --name "Phase 2: Core Logic" --position 2
-   bb main create-task-list <PLAN-ID> --name "Phase 3: API/UI" --position 3
-   bb main create-task-list <PLAN-ID> --name "Phase 4: Testing" --position 4
+   clojure-skills create-task-list <PLAN-ID> --name "Phase 1: Database" --position 1
+   clojure-skills create-task-list <PLAN-ID> --name "Phase 2: Core Logic" --position 2
+   clojure-skills create-task-list <PLAN-ID> --name "Phase 3: API/UI" --position 3
+   clojure-skills create-task-list <PLAN-ID> --name "Phase 4: Testing" --position 4
    ```
 
 3. **Add specific tasks to each phase:**
    ```bash
    # Add tasks to task list (note task list IDs from show-plan)
-   bb main create-task <TASK-LIST-ID> --name "Task name" --position 1
+   clojure-skills create-task <TASK-LIST-ID> --name "Task name" --position 1
    ```
 
 4. **Track progress as you work:**
    ```bash
-   bb main complete-task <TASK-ID>    # Mark tasks complete
-   bb main show-plan <PLAN-ID>        # View progress
-   bb main complete-plan <PLAN-ID>    # When finished
+   clojure-skills complete-task <TASK-ID>    # Mark tasks complete
+   clojure-skills show-plan <PLAN-ID>        # View progress
+   clojure-skills complete-plan <PLAN-ID>    # When finished
    ```
 
 5. **Use IDs correctly:**
@@ -1447,7 +1436,7 @@ This helps both you and humans understand progress across sessions.
 6. **Test all code examples with clojure_eval**
 7. Check spelling with `bb typos`
 8. Verify skill appears in `bb list-skills` output
-9. Sync database: `bb main sync`
+9. Sync database: `clojure-skills sync`
 
 ### When Asked to Create a Prompt
 
@@ -1568,7 +1557,7 @@ This repository is designed for **modular, composable prompt engineering** for C
 **Essential Commands:**
 - `clojure-skills search <topic>` - Find relevant skills
 - `clojure-skills show-skill <name>` - View detailed skill content
-- `bb main create-plan` - Start tracking complex implementations
+- `clojure-skills create-plan` - Start tracking complex implementations
 - `bb list-skills` - See all available skills with metadata
 - `bb build <name>` - Build a specific prompt
 - `bb ci` - Run full quality pipeline (fmt, lint, typos, test)
