@@ -1,0 +1,127 @@
+{:id "001-initial-schema"
+
+ :up
+ ["CREATE TABLE IF NOT EXISTS skills (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     path TEXT NOT NULL UNIQUE,
+     category TEXT NOT NULL,
+     name TEXT NOT NULL,
+     title TEXT,
+     description TEXT,
+     content TEXT NOT NULL,
+     file_hash TEXT NOT NULL,
+     size_bytes INTEGER NOT NULL,
+     token_count INTEGER,
+     created_at TEXT NOT NULL DEFAULT (datetime('now')),
+     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+   )"
+
+  "CREATE INDEX idx_skills_category ON skills(category)"
+  "CREATE INDEX idx_skills_name ON skills(name)"
+  "CREATE INDEX idx_skills_hash ON skills(file_hash)"
+
+  "CREATE TABLE IF NOT EXISTS prompts (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     path TEXT NOT NULL UNIQUE,
+     name TEXT NOT NULL,
+     title TEXT,
+     author TEXT,
+     description TEXT,
+     content TEXT NOT NULL,
+     file_hash TEXT NOT NULL,
+     size_bytes INTEGER NOT NULL,
+     token_count INTEGER,
+     created_at TEXT NOT NULL DEFAULT (datetime('now')),
+     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+   )"
+
+  "CREATE INDEX idx_prompts_name ON prompts(name)"
+  "CREATE INDEX idx_prompts_hash ON prompts(file_hash)"
+
+  "CREATE TABLE IF NOT EXISTS prompt_skills (
+     prompt_id INTEGER NOT NULL,
+     skill_id INTEGER NOT NULL,
+     position INTEGER NOT NULL,
+     PRIMARY KEY (prompt_id, skill_id),
+     FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE CASCADE,
+     FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE
+   )"
+
+  "CREATE INDEX idx_prompt_skills_prompt ON prompt_skills(prompt_id)"
+  "CREATE INDEX idx_prompt_skills_skill ON prompt_skills(skill_id)"
+
+  "CREATE VIRTUAL TABLE IF NOT EXISTS skills_fts USING fts5(
+     path,
+     category,
+     name,
+     title,
+     description,
+     content,
+     content='skills',
+     content_rowid='id'
+   )"
+
+  "CREATE TRIGGER IF NOT EXISTS skills_ai AFTER INSERT ON skills BEGIN
+     INSERT INTO skills_fts(rowid, path, category, name, title, description, content)
+     VALUES (new.id, new.path, new.category, new.name, new.title, new.description, new.content);
+   END"
+
+  "CREATE TRIGGER IF NOT EXISTS skills_ad AFTER DELETE ON skills BEGIN
+     INSERT INTO skills_fts(skills_fts, rowid, path, category, name, title, description, content)
+     VALUES('delete', old.id, old.path, old.category, old.name, old.title, old.description, old.content);
+   END"
+
+  "CREATE TRIGGER IF NOT EXISTS skills_au AFTER UPDATE ON skills BEGIN
+     INSERT INTO skills_fts(skills_fts, rowid, path, category, name, title, description, content)
+     VALUES('delete', old.id, old.path, old.category, old.name, old.title, old.description, old.content);
+     INSERT INTO skills_fts(rowid, path, category, name, title, description, content)
+     VALUES (new.id, new.path, new.category, new.name, new.title, new.description, new.content);
+   END"
+
+  "CREATE VIRTUAL TABLE IF NOT EXISTS prompts_fts USING fts5(
+     path,
+     name,
+     title,
+     author,
+     description,
+     content,
+     content='prompts',
+     content_rowid='id'
+   )"
+
+  "CREATE TRIGGER IF NOT EXISTS prompts_ai AFTER INSERT ON prompts BEGIN
+     INSERT INTO prompts_fts(rowid, path, name, title, author, description, content)
+     VALUES (new.id, new.path, new.name, new.title, new.author, new.description, new.content);
+   END"
+
+  "CREATE TRIGGER IF NOT EXISTS prompts_ad AFTER DELETE ON prompts BEGIN
+     INSERT INTO prompts_fts(prompts_fts, rowid, path, name, title, author, description, content)
+     VALUES('delete', old.id, old.path, old.name, old.title, old.author, old.description, old.content);
+   END"
+
+  "CREATE TRIGGER IF NOT EXISTS prompts_au AFTER UPDATE ON prompts BEGIN
+     INSERT INTO prompts_fts(prompts_fts, rowid, path, name, title, author, description, content)
+     VALUES('delete', old.id, old.path, old.name, old.title, old.author, old.description, old.content);
+     INSERT INTO prompts_fts(rowid, path, name, title, author, description, content)
+     VALUES (new.id, new.path, new.name, new.title, new.author, new.description, new.content);
+   END"]
+
+ :down
+ ["DROP TRIGGER IF EXISTS prompts_au"
+  "DROP TRIGGER IF EXISTS prompts_ad"
+  "DROP TRIGGER IF EXISTS prompts_ai"
+  "DROP TABLE IF EXISTS prompts_fts"
+  "DROP TRIGGER IF EXISTS skills_au"
+  "DROP TRIGGER IF EXISTS skills_ad"
+  "DROP TRIGGER IF EXISTS skills_ai"
+  "DROP TABLE IF EXISTS skills_fts"
+  "DROP INDEX IF EXISTS idx_prompt_skills_skill"
+  "DROP INDEX IF EXISTS idx_prompt_skills_prompt"
+  "DROP TABLE IF EXISTS prompt_skills"
+  "DROP INDEX IF EXISTS idx_prompts_hash"
+  "DROP INDEX IF EXISTS idx_prompts_name"
+  "DROP TABLE IF EXISTS prompts"
+  "DROP INDEX IF EXISTS idx_skills_hash"
+  "DROP INDEX IF EXISTS idx_skills_name"
+  "DROP INDEX IF EXISTS idx_skills_category"
+  "DROP TABLE IF EXISTS skills"]}

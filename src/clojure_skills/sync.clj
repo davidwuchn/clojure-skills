@@ -168,7 +168,7 @@
     (let [skill-data (parse-skill-file skill-path)
           existing (get-skill-by-path db skill-path)]
       (if (and existing
-               (= (:file-hash existing) (:file-hash skill-data)))
+               (= (:skills/file_hash existing) (:file_hash skill-data)))
         (println "  Skipped (unchanged):" skill-path)
         (do
           (upsert-skill db skill-data)
@@ -183,7 +183,7 @@
     (let [prompt-data (parse-prompt-file prompt-path)
           existing (get-prompt-by-path db prompt-path)]
       (if (and existing
-               (= (:file-hash existing) (:file-hash prompt-data)))
+               (= (:prompts/file_hash existing) (:file_hash prompt-data)))
         (println "  Skipped (unchanged):" prompt-path)
         (do
           (upsert-prompt db prompt-data)

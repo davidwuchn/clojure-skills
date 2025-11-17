@@ -574,4 +574,23 @@
                (do
                  (println (:err result))
                  (error-msg "Compression failed")
-                 (System/exit 1)))))}}}
+                 (System/exit 1)))))}
+
+  migrate
+  {:doc "Run database migrations"
+   :task (do
+           (info-msg "Running database migrations...")
+           (shell "clojure -M:jvm-base:migrate migrate"))}
+
+  rollback
+  {:doc "Rollback database migrations\nUsage: bb rollback [n] - rollback last n migrations (default: 1)"
+   :task (let [amount (or (first *command-line-args*) "1")]
+           (info-msg (str "Rolling back " amount " migration(s)..."))
+           (shell (str "clojure -M:jvm-base:migrate rollback " amount)))}
+
+  rollback-all
+  {:doc "Rollback all database migrations"
+   :task (do
+           (warning-msg "WARNING: This will rollback ALL migrations!")
+           (info-msg "Rolling back all migrations...")
+           (shell "clojure -M:jvm-base:migrate rollback-all"))}}}

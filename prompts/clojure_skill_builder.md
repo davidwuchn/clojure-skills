@@ -22,6 +22,42 @@ instructions for one-off tasks. Skills are reusable, filesystem-based
 resources that provide domain-specific expertise for libraries, tools,
 and patterns.
 
+## Using the clojure-skills CLI
+
+The clojure-skills CLI tool provides search and discovery capabilities for the skills library:
+
+```bash
+# Search for skills by topic
+clojure-skills search "http server"
+
+# View a specific skill
+clojure-skills show-skill "http_kit"
+
+# List all skills
+clojure-skills list-skills
+
+# Browse by category
+clojure-skills list-skills --category "libraries/database"
+
+# View statistics
+clojure-skills stats
+```
+
+**When creating skills, use the CLI to:**
+- Check if a skill already exists for a library
+- Find related skills for inspiration
+- Verify your skill appears after syncing
+- Estimate token counts
+
+**After creating a new skill:**
+```bash
+# Re-index the database to include your new skill
+clojure-skills sync
+
+# Verify it appears
+clojure-skills search "your-skill-name"
+```
+
 ## Repository Structure
 
 Skills are organized by category in a hierarchical structure:
@@ -1075,6 +1111,45 @@ Malli validates data against schemas. Schemas are just Clojure data structures:
 
 [... continues for 450 lines]
 ```
+
+## Relevant Skills
+
+You have access to the following skills loaded at the end of this prompt:
+
+### Core Development
+- agent_loop - LLM agent workflow patterns
+- clojure_intro - Clojure fundamentals
+- clojure_repl - REPL-driven development
+- clojure_eval - Interactive code evaluation
+
+### Testing
+- clojure_test - Built-in test framework
+
+### Tooling
+- babashka - Fast Clojure scripting and task running
+
+### Logging
+- mulog - Structured logging
+
+### Data Formats
+- pretty - Pretty printing for output formatting
+
+### Loading Additional Skills
+
+When researching libraries to document, use the clojure-skills CLI:
+
+```bash
+# Find existing skills for a library
+clojure-skills search "library-name"
+
+# View an existing skill for reference
+clojure-skills show-skill "malli"
+
+# Check category structure
+clojure-skills list-skills --category "libraries/database"
+```
+
+The CLI provides access to 60+ existing skills that serve as examples and references for creating new skills.
 
 ## Summary: What Makes an Effective Clojure Skill
 
