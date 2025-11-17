@@ -6,7 +6,8 @@
             [next.jdbc :as jdbc]
             [next.jdbc.sql :as sql]
             [clojure-skills.config :as config]
-            [clojure-skills.db.core])
+            [clojure-skills.db.core]
+            [clojure-skills.logging :as log])
   (:import [java.security MessageDigest]
            [java.io File]))
 
@@ -34,7 +35,7 @@
             (try
               [(yaml/parse-string frontmatter-text) content-text]
               (catch Exception e
-                (println "Warning: Failed to parse frontmatter:" (.getMessage e))
+                (log/log-warning "Failed to parse frontmatter" :error (.getMessage e))
                 [nil content])))
           [nil content]))
       [nil content])))
@@ -169,11 +170,15 @@
           existing (get-skill-by-path db skill-path)]
       (if (and existing
                (= (:skills/file_hash existing) (:file_hash skill-data)))
-        (println "  Skipped (unchanged):" skill-path)
+        (do
+          (log/log-info "Skipped skill sync (unchanged)" :path skill-path)
+          (println "  Skipped (unchanged):" skill-path))
         (do
           (upsert-skill db skill-data)
+          (log/log-info "Synced skill" :path skill-path)
           (println "  Synced:" skill-path))))
     (catch Exception e
+      (log/log-error "Error syncing skill" :path skill-path :error (.getMessage e))
       (println "  ERROR syncing" skill-path ":" (.getMessage e)))))
 
 (defn sync-prompt
@@ -184,11 +189,15 @@
           existing (get-prompt-by-path db prompt-path)]
       (if (and existing
                (= (:prompts/file_hash existing) (:file_hash prompt-data)))
-        (println "  Skipped (unchanged):" prompt-path)
+        (do
+          (log/log-info "Skipped prompt sync (unchanged)" :path prompt-path)
+          (println "  Skipped (unchanged):" prompt-path))
         (do
           (upsert-prompt db prompt-data)
+          (log/log-info "Synced prompt" :path prompt-path)
           (println "  Synced:" prompt-path))))
     (catch Exception e
+      (log/log-error "Error syncing prompt" :path prompt-path :error (.getMessage e))
       (println "  ERROR syncing" prompt-path ":" (.getMessage e)))))
 
 (defn sync-all-skills
@@ -198,9 +207,11 @@
                          (System/getProperty "user.dir"))
         skills-dir (str project-root "/" (get-in config [:project :skills-dir]))
         skill-files (scan-skill-files skills-dir)]
+    (log/log-info "Starting skills sync" :count (count skill-files) :directory skills-dir)
     (println (format "Syncing %d skills from %s..." (count skill-files) skills-dir))
     (doseq [skill-file skill-files]
       (sync-skill db skill-file))
+    (log/log-success "Skills sync complete" :count (count skill-files))
     (println "Skills sync complete.")))
 
 (defn sync-all-prompts
@@ -210,9 +221,11 @@
                          (System/getProperty "user.dir"))
         prompts-dir (str project-root "/" (get-in config [:project :prompts-dir]))
         prompt-files (scan-prompt-files prompts-dir)]
+    (log/log-info "Starting prompts sync" :count (count prompt-files) :directory prompts-dir)
     (println (format "Syncing %d prompts from %s..." (count prompt-files) prompts-dir))
     (doseq [prompt-file prompt-files]
       (sync-prompt db prompt-file))
+    (log/log-success "Prompts sync complete" :count (count prompt-files))
     (println "Prompts sync complete.")))
 
 (defn sync-all

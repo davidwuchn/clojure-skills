@@ -33,7 +33,10 @@
   ;; Note: Logback includes slf4j-api 1.7.x, which is compatible
   cambium/cambium.core {:mvn/version "1.1.1"}
   cambium/cambium.codec-cheshire {:mvn/version "1.0.0"}
-  cambium/cambium.logback.json {:mvn/version "0.4.6"}}
+  cambium/cambium.logback.json {:mvn/version "0.4.6"}
+
+  ;; Event-based logging with μ/log
+  com.brunobonacci/mulog {:mvn/version "0.9.0"}}
 
  :paths ["src"
          "classes"

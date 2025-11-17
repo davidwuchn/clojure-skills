@@ -7,7 +7,8 @@
   3. Built-in defaults"
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [clojure-skills.logging :as log]))
 
 (defn get-home-dir
   "Get user's home directory."
@@ -65,7 +66,7 @@
       (try
         (edn/read-string (slurp config-path))
         (catch Exception e
-          (println "Warning: Failed to load config file:" (.getMessage e))
+          (log/log-warning "Failed to load config file" :path config-path :error (.getMessage e))
           nil)))))
 
 (defn get-env-overrides

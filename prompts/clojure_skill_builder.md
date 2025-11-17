@@ -24,38 +24,89 @@ and patterns.
 
 ## Using the clojure-skills CLI
 
-The clojure-skills CLI tool provides search and discovery capabilities for the skills library:
+The clojure-skills CLI tool provides search and discovery capabilities for the skills library. It uses a SQLite database for fast, indexed searching.
+
+**Core Commands:**
 
 ```bash
-# Search for skills by topic
+# Search for skills by topic or keywords
 clojure-skills search "http server"
-
-# View a specific skill
-clojure-skills show-skill "http_kit"
+clojure-skills search "validation" -t skills
+clojure-skills search "malli" -c libraries/data_validation
 
 # List all skills
 clojure-skills list-skills
+clojure-skills list-skills -c libraries/database
 
-# Browse by category
-clojure-skills list-skills --category "libraries/database"
+# List all prompts
+clojure-skills list-prompts
 
-# View statistics
+# View a specific skill's full content as JSON
+clojure-skills show-skill "malli"
+clojure-skills show-skill "http_kit" -c http_servers
+
+# View database statistics
 clojure-skills stats
+
+# Initialize or reset database (rarely needed)
+clojure-skills init
+clojure-skills reset-db --force
+
+# Sync skills from filesystem to database
+clojure-skills sync
 ```
 
+**Search Options:**
+- `-t, --type` - Search type: `skills`, `prompts`, or `all` (default: all)
+- `-c, --category` - Filter by category (e.g., `libraries/database`)
+- `-n, --max-results` - Maximum results to return (default: 50)
+
 **When creating skills, use the CLI to:**
-- Check if a skill already exists for a library
-- Find related skills for inspiration
-- Verify your skill appears after syncing
-- Estimate token counts
 
-**After creating a new skill:**
+1. **Check if a skill already exists:**
+   ```bash
+   clojure-skills search "library-name"
+   clojure-skills list-skills -c libraries/your_category
+   ```
+
+2. **Find related skills for inspiration:**
+   ```bash
+   clojure-skills search "similar topic" -t skills
+   clojure-skills show-skill "similar-skill" | jq '.content'
+   ```
+
+3. **View skill statistics and sizing:**
+   ```bash
+   clojure-skills stats
+   clojure-skills list-skills -c your_category
+   ```
+
+4. **Verify your skill after creation:**
+   ```bash
+   # Re-index the database to include your new skill
+   clojure-skills sync
+   
+   # Verify it appears
+   clojure-skills search "your-skill-name"
+   clojure-skills show-skill "your-skill-name"
+   ```
+
+**Workflow Example:**
+
 ```bash
-# Re-index the database to include your new skill
-clojure-skills sync
+# 1. Check if skill exists
+clojure-skills search "next.jdbc"
 
-# Verify it appears
-clojure-skills search "your-skill-name"
+# 2. Find related database skills
+clojure-skills list-skills -c libraries/database
+
+# 3. View a related skill for reference
+clojure-skills show-skill "honeysql" | jq -r '.content' | less
+
+# 4. After creating your skill, sync and verify
+clojure-skills sync
+clojure-skills search "next_jdbc"
+clojure-skills show-skill "next_jdbc"
 ```
 
 ## Repository Structure
@@ -1136,20 +1187,52 @@ You have access to the following skills loaded at the end of this prompt:
 
 ### Loading Additional Skills
 
-When researching libraries to document, use the clojure-skills CLI:
+When researching libraries to document, use the clojure-skills CLI tool.
+
+**Discover existing skills:**
 
 ```bash
-# Find existing skills for a library
+# Search for skills related to your topic
 clojure-skills search "library-name"
+clojure-skills search "validation" -t skills
 
-# View an existing skill for reference
+# List all skills in a category for inspiration
+clojure-skills list-skills -c libraries/database
+clojure-skills list-skills -c libraries/data_validation
+
+# View full content of a skill as JSON
 clojure-skills show-skill "malli"
+clojure-skills show-skill "http_kit" -c http_servers
 
-# Check category structure
-clojure-skills list-skills --category "libraries/database"
+# Extract just the content for reading
+clojure-skills show-skill "next_jdbc" | jq -r '.content' | less
+
+# Get statistics about the skills database
+clojure-skills stats
 ```
 
-The CLI provides access to 60+ existing skills that serve as examples and references for creating new skills.
+**Common research workflows:**
+
+```bash
+# 1. Check if a skill already exists
+clojure-skills search "next.jdbc"
+
+# 2. Find skills in the same category for reference
+clojure-skills list-skills -c libraries/database
+
+# 3. Study a similar skill's structure
+clojure-skills show-skill "honeysql" | jq -r '.content' > reference.md
+
+# 4. View all available categories
+clojure-skills stats  # Shows category breakdown
+
+# 5. After creating your skill, sync and verify
+clojure-skills sync
+clojure-skills search "your-skill-name"
+clojure-skills show-skill "your-skill-name"
+```
+
+The CLI provides access to 60+ existing skills that serve as examples and references for creating new skills. Use `clojure-skills stats` to see the full breakdown by category.
 
 ## Summary: What Makes an Effective Clojure Skill
 
