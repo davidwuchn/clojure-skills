@@ -981,6 +981,114 @@ Complete reference for all task tracking commands:
 - `<ID-OR-NAME>` - Either numeric ID or string name
 - Status values: `draft`, `in-progress`, `completed`, `archived`
 
+#### Associating Skills with Plans
+
+**Why associate skills with plans?**
+When working on a plan, you can associate relevant skills to:
+- Document which skills are needed for the implementation
+- Load the right context when working on the plan
+- Track which skills were used in the implementation
+- Help other agents/developers understand what knowledge is required
+
+**Associate a skill with a plan:**
+```bash
+clojure-skills associate-skill <PLAN-ID> <SKILL-NAME-OR-PATH> [--position N]
+```
+
+**Arguments:**
+- `<PLAN-ID>` (REQUIRED, positional) - Numeric plan ID
+- `<SKILL-NAME-OR-PATH>` (REQUIRED, positional) - Skill name (e.g., "malli") or path (e.g., "skills/libraries/data_validation/malli.md")
+- `--position` or `-p` (optional) - Position in the skill list (default: 0)
+
+**Examples:**
+```bash
+# Associate by skill name
+clojure-skills associate-skill 6 "cli_matic" --position 1
+
+# Associate by file path
+clojure-skills associate-skill 6 "skills/tooling/codox.md" --position 2
+
+# Multiple skills for a plan
+clojure-skills associate-skill 6 "malli" --position 1
+clojure-skills associate-skill 6 "next_jdbc" --position 2
+clojure-skills associate-skill 6 "honeysql" --position 3
+```
+
+**Dissociate a skill from a plan:**
+```bash
+clojure-skills dissociate-skill <PLAN-ID> <SKILL-NAME-OR-PATH>
+```
+
+**Arguments:**
+- `<PLAN-ID>` (REQUIRED, positional) - Numeric plan ID
+- `<SKILL-NAME-OR-PATH>` (REQUIRED, positional) - Skill name or path
+
+**Example:**
+```bash
+clojure-skills dissociate-skill 6 "cli_matic"
+```
+
+**List skills associated with a plan:**
+```bash
+clojure-skills list-plan-skills <PLAN-ID>
+```
+
+**Arguments:**
+- `<PLAN-ID>` (REQUIRED, positional) - Numeric plan ID
+
+**Example:**
+```bash
+clojure-skills list-plan-skills 6
+
+# Output shows:
+# Skills for plan 6:
+# Position | Category      | Name        | Title
+# 1        | libraries/cli | cli_matic   |
+# 2        | tooling       | codox       |
+# 3        | language      | clojure_repl|
+```
+
+**View associated skills in show-plan:**
+```bash
+clojure-skills show-plan 6
+
+# Output includes:
+# Associated Skills:
+# 1. [libraries/cli] cli_matic
+# 2. [tooling] codox
+# 3. [language] clojure_repl
+```
+
+**Plan-Skill Association Commands Reference:**
+
+| Command | Positional Args | Required Options | Optional Options | Description |
+|---------|----------------|------------------|------------------|-------------|
+| `associate-skill` | `<PLAN-ID>` `<SKILL-NAME-OR-PATH>` | None | `--position` or `-p` | Associate a skill with a plan |
+| `dissociate-skill` | `<PLAN-ID>` `<SKILL-NAME-OR-PATH>` | None | None | Remove skill association from a plan |
+| `list-plan-skills` | `<PLAN-ID>` | None | None | List all skills associated with a plan |
+
+**Workflow Example:**
+```bash
+# 1. Create a plan for database refactoring
+clojure-skills create-plan --name "db-refactor" --title "Database Layer Refactor"
+# Output: Plan ID: 5
+
+# 2. Associate relevant skills
+clojure-skills associate-skill 5 "next_jdbc" --position 1
+clojure-skills associate-skill 5 "honeysql" --position 2
+clojure-skills associate-skill 5 "ragtime" --position 3
+
+# 3. View the plan with associated skills
+clojure-skills show-plan 5
+
+# 4. When working on the plan, review the skills:
+clojure-skills show-skill "next_jdbc" | jq -r '.content'
+clojure-skills show-skill "honeysql" | jq -r '.content'
+
+# 5. If a skill is no longer needed:
+clojure-skills dissociate-skill 5 "ragtime"
+```
+
 ### When to Use Task Tracking
 
 **Use task tracking when:**
@@ -1406,25 +1514,55 @@ For complex multi-step implementations, use the task tracking system. See [Task 
    clojure-skills create-task-list <PLAN-ID> --name "Phase 4: Testing" --position 4
    ```
 
-3. **Add specific tasks to each phase:**
+3. **Associate relevant skills with the plan:**
+   ```bash
+   # Search for relevant skills first
+   clojure-skills search "topic" -t skills
+   
+   # Associate skills that will be needed
+   clojure-skills associate-skill <PLAN-ID> "skill-name" --position 1
+   clojure-skills associate-skill <PLAN-ID> "another-skill" --position 2
+   
+   # View associated skills
+   clojure-skills list-plan-skills <PLAN-ID>
+   ```
+
+4. **Add specific tasks to each phase:**
    ```bash
    # Add tasks to task list (note task list IDs from show-plan)
    clojure-skills create-task <TASK-LIST-ID> --name "Task name" --position 1
    ```
 
-4. **Track progress as you work:**
+5. **Before starting work, load the relevant skills:**
+   ```bash
+   # Review the plan to see which skills are associated
+   clojure-skills show-plan <PLAN-ID>
+   
+   # Load each skill's content to refresh your knowledge
+   clojure-skills show-skill "skill-name" | jq -r '.content' | head -100
+   
+   # Or search for additional skills as needed
+   clojure-skills search "specific-topic" -t skills
+   ```
+
+6. **Track progress as you work:**
    ```bash
    clojure-skills complete-task <TASK-ID>    # Mark tasks complete
    clojure-skills show-plan <PLAN-ID>        # View progress
    clojure-skills complete-plan <PLAN-ID>    # When finished
    ```
 
-5. **Use IDs correctly:**
+7. **Use IDs correctly:**
    - Plan IDs are shown after `create-plan`
    - Task list and task IDs are shown in `show-plan` output
    - You can also query plans by name: `show-plan "feature-name"`
 
 This helps both you and humans understand progress across sessions.
+
+**Best Practice for Agents:**
+- **ALWAYS associate relevant skills with plans** - This documents what knowledge is needed and helps you load the right context when resuming work
+- **Review associated skills before starting each work session** - This ensures you have the necessary knowledge fresh in context
+- **Add skills as you discover new requirements** - If you need additional skills during implementation, associate them with the plan
 
 ### When Asked to Add a Skill
 
@@ -1558,6 +1696,8 @@ This repository is designed for **modular, composable prompt engineering** for C
 - `clojure-skills search <topic>` - Find relevant skills
 - `clojure-skills show-skill <name>` - View detailed skill content
 - `clojure-skills create-plan` - Start tracking complex implementations
+- `clojure-skills associate-skill <plan-id> <skill>` - Link skills to plans
+- `clojure-skills list-plan-skills <plan-id>` - View plan's associated skills
 - `bb list-skills` - See all available skills with metadata
 - `bb build <name>` - Build a specific prompt
 - `bb ci` - Run full quality pipeline (fmt, lint, typos, test)
@@ -1574,6 +1714,7 @@ This repository is designed for **modular, composable prompt engineering** for C
 **When in doubt:**
 - **Before editing any file**: Test it in clojure_eval first
 - **Need library knowledge**: Use `clojure-skills search`
-- **Complex feature**: Create an implementation plan
+- **Complex feature**: Create an implementation plan and associate relevant skills
+- **Starting work on a plan**: Review associated skills with `list-plan-skills`
 - **Debugging**: Use clojure_eval to test hypotheses
 - **Before committing**: Run `bb ci` to ensure quality

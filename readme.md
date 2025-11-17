@@ -325,6 +325,29 @@ clojure-skills create-task 1 \
 clojure-skills complete-task 1
 ```
 
+**Plan-Skill Associations:**
+
+```bash
+# Associate a skill with a plan
+clojure-skills associate-skill 1 "malli" --position 1
+clojure-skills associate-skill 1 "next_jdbc" --position 2
+
+# List skills associated with a plan
+clojure-skills list-plan-skills 1
+
+# Remove skill association
+clojure-skills dissociate-skill 1 "malli"
+
+# View associated skills in show-plan
+clojure-skills show-plan 1
+```
+
+**Why associate skills?**
+- Document which knowledge is required for the implementation
+- Help agents/developers load the right context before starting work
+- Track which skills were actually used
+- Make it easier to resume work across sessions
+
 ### Example Workflow
 
 ```bash
@@ -335,25 +358,34 @@ clojure-skills create-plan \
   --status "in-progress"
 # Returns: Plan ID: 1
 
-# 2. Create phases (task lists)
+# 2. Associate relevant skills
+clojure-skills associate-skill 1 "next_jdbc" --position 1
+clojure-skills associate-skill 1 "honeysql" --position 2
+clojure-skills associate-skill 1 "buddy" --position 3
+
+# 3. Create phases (task lists)
 clojure-skills create-task-list 1 --name "Phase 1: Database"
 clojure-skills create-task-list 1 --name "Phase 2: Core Logic"
 clojure-skills create-task-list 1 --name "Phase 3: API Endpoints"
 clojure-skills create-task-list 1 --name "Phase 4: Testing"
 
-# 3. Add tasks to Phase 1
+# 4. Add tasks to Phase 1
 clojure-skills create-task 1 --name "Create users table"
 clojure-skills create-task 1 --name "Create sessions table"
 clojure-skills create-task 1 --name "Add password hashing"
 
-# 4. Work through tasks
+# 5. Before starting work, review associated skills
+clojure-skills list-plan-skills 1
+clojure-skills show-skill "next_jdbc" | jq -r '.skills/content' | head -100
+
+# 6. Work through tasks
 clojure-skills complete-task 1
 clojure-skills complete-task 2
 
-# 5. Check progress
+# 7. Check progress
 clojure-skills show-plan 1
 
-# 6. When finished
+# 8. When finished
 clojure-skills complete-plan 1
 ```
 

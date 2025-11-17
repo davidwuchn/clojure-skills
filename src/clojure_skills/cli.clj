@@ -9,6 +9,7 @@
    [clojure-skills.config :as config]
    [clojure-skills.db.core :as db]
    [clojure-skills.db.migrate :as migrate]
+   [clojure-skills.db.plan-skills :as plan-skills]
    [clojure-skills.db.plans :as plans]
    [clojure-skills.db.tasks :as tasks]
    [clojure-skills.logging :as log]
@@ -367,6 +368,20 @@
              (println (bling/bling [:underline "Content:"]))
              (println (:implementation_plans/content plan))
 
+             ;; Show associated skills
+             (let [skills (plan-skills/list-plan-skills db (:implementation_plans/id plan))]
+               (when (seq skills)
+                 (println)
+                 (println (bling/bling [:bold "Associated Skills:"]))
+                 (println)
+                 (doseq [skill skills]
+                   (println (format "%d. [%s] %s"
+                                    (:plan_skills/position skill)
+                                    (:skills/category skill)
+                                    (:skills/name skill)))
+                   (when (:skills/title skill)
+                     (println (format "    %s" (:skills/title skill)))))))
+
              ;; Show task lists and tasks
              (let [task-lists (tasks/list-task-lists-for-plan db (:implementation_plans/id plan))]
                (when (seq task-lists)
@@ -503,6 +518,77 @@
            (do
              (print-error (str "Task not found: " task-id))
              (System/exit 1))))))))
+
+(defn cmd-associate-skill
+  "Associate a skill with an implementation plan."
+  [{:keys [_arguments position]}]
+  (let [[plan-id-str skill-name-or-path] _arguments]
+    (validate-non-blank plan-id-str "Plan ID is required")
+    (validate-non-blank skill-name-or-path "Skill name or path is required")
+    (handle-command-errors
+     "Associate skill"
+     (fn []
+       (let [[_config db] (load-config-and-db)
+             plan-id (Integer/parseInt plan-id-str)
+             skill (or (plan-skills/get-skill-by-name db skill-name-or-path)
+                       (plan-skills/get-skill-by-path db skill-name-or-path))]
+         (when-not skill
+           (print-error (str "Skill not found: " skill-name-or-path))
+           (System/exit 1))
+         (let [pos (or position 0)
+               _result (plan-skills/associate-skill-with-plan db
+                                                              {:plan-id plan-id
+                                                               :skill-id (:skills/id skill)
+                                                               :position pos})]
+           (print-success (str "Associated skill '" (:skills/name skill) "' with plan " plan-id))))))))
+
+(defn cmd-dissociate-skill
+  "Dissociate a skill from an implementation plan."
+  [{:keys [_arguments]}]
+  (let [[plan-id-str skill-name-or-path] _arguments]
+    (validate-non-blank plan-id-str "Plan ID is required")
+    (validate-non-blank skill-name-or-path "Skill name or path is required")
+    (handle-command-errors
+     "Dissociate skill"
+     (fn []
+       (let [[_config db] (load-config-and-db)
+             plan-id (Integer/parseInt plan-id-str)
+             skill (or (plan-skills/get-skill-by-name db skill-name-or-path)
+                       (plan-skills/get-skill-by-path db skill-name-or-path))]
+         (when-not skill
+           (print-error (str "Skill not found: " skill-name-or-path))
+           (System/exit 1))
+         (let [result (plan-skills/dissociate-skill-from-plan db
+                                                              {:plan-id plan-id
+                                                               :skill-id (:skills/id skill)})]
+           (if (pos? (:next.jdbc/update-count result))
+             (print-success (str "Dissociated skill '" (:skills/name skill) "' from plan " plan-id))
+             (print-info (str "Skill '" (:skills/name skill) "' was not associated with plan " plan-id)))))))))
+
+(defn cmd-list-plan-skills
+  "List all skills associated with an implementation plan."
+  [{:keys [_arguments]}]
+  (let [plan-id-str (first _arguments)]
+    (validate-non-blank plan-id-str "Plan ID is required")
+    (handle-command-errors
+     "List plan skills"
+     (fn []
+       (let [[_config db] (load-config-and-db)
+             plan-id (Integer/parseInt plan-id-str)
+             skills (plan-skills/list-plan-skills db plan-id)]
+         (if (empty? skills)
+           (println (str "No skills associated with plan " plan-id))
+           (do
+             (println)
+             (println (bling/bling [:bold (format "Skills for plan %d:" plan-id)]))
+             (format-table
+              [:position :category :name :title]
+              (map (fn [skill]
+                     {:position (:plan_skills/position skill)
+                      :category (:skills/category skill)
+                      :name (:skills/name skill)
+                      :title (or (:skills/title skill) "")})
+                   skills)))))))))
 
 ;; CLI configuration
 
@@ -706,7 +792,45 @@
              :as "Task ID"
              :type :string
              :required true}]
-     :runs cmd-complete-task}]})
+     :runs cmd-complete-task}
+
+    ;; Plan-skill association commands
+    {:command "associate-skill"
+     :description "Associate a skill with an implementation plan"
+     :args [{:arg "plan-id"
+             :as "Plan ID"
+             :type :string
+             :required true}
+            {:arg "skill-name-or-path"
+             :as "Skill name or path"
+             :type :string
+             :required true}]
+     :opts [{:option "position"
+             :short "p"
+             :as "Position in the skill list"
+             :type :int
+             :default 0}]
+     :runs cmd-associate-skill}
+
+    {:command "dissociate-skill"
+     :description "Dissociate a skill from an implementation plan"
+     :args [{:arg "plan-id"
+             :as "Plan ID"
+             :type :string
+             :required true}
+            {:arg "skill-name-or-path"
+             :as "Skill name or path"
+             :type :string
+             :required true}]
+     :runs cmd-dissociate-skill}
+
+    {:command "list-plan-skills"
+     :description "List all skills associated with an implementation plan"
+     :args [{:arg "plan-id"
+             :as "Plan ID"
+             :type :string
+             :required true}]
+     :runs cmd-list-plan-skills}]})
 
 (defn run-cli
   "Run the CLI with the given arguments."

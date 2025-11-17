@@ -14,7 +14,8 @@
         "read": false,
         "bash": true,
         "todowrite": false,
-        "todoread": false
+        "todoread": false,
+        "clojure-mcp_scratch_pad": false
       },
       "permission": {
         "write": "ask",
