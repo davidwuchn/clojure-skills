@@ -16,6 +16,7 @@
    [clojure-skills.logging :as log]
    [clojure-skills.search :as search]
    [clojure-skills.sync :as sync]
+   [clojure.set :as set]
    [clojure.string :as str]
    [jsonista.core :as json]))
 
@@ -1443,6 +1444,14 @@
        :runs cmd-delete-task}]}]})
 
 (defn run-cli
-  "Run the CLI with the given arguments."
+  "Run the CLI with the given arguments, filtering commands based on permissions."
   [args]
-  (cli/run-cmd args cli-config))
+  (let [config (config/load-config)
+        filtered-cli-config (if (empty? (:permissions config))
+                              cli-config
+                              (assoc cli-config
+                                     :subcommands
+                                     (config/filter-commands (:subcommands cli-config)
+                                                             (:permissions config)
+                                                             [])))]
+    (cli/run-cmd args filtered-cli-config)))

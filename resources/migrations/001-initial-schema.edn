@@ -1,7 +1,9 @@
 {:id "001-initial-schema"
 
  :up
- ["CREATE TABLE IF NOT EXISTS skills (
+ ["PRAGMA foreign_keys = ON"
+
+  "CREATE TABLE IF NOT EXISTS skills (
      id INTEGER PRIMARY KEY AUTOINCREMENT,
      path TEXT NOT NULL UNIQUE,
      category TEXT NOT NULL,

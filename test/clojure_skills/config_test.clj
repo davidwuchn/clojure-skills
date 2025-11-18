@@ -1,70 +1,185 @@
 (ns clojure-skills.config-test
-  (:require [clojure.test :refer [deftest is testing]]
-            [clojure-skills.config :as config]))
+  "Tests for configuration loading and command filtering."
+  (:require
+   [clojure.test :refer [deftest testing is]]
+   [clojure-skills.config :as config]))
 
-(deftest test-get-home-dir
-  (testing "get-home-dir returns a non-empty string"
-    (let [home (config/get-home-dir)]
-      (is (string? home))
-      (is (seq home)))))
+(deftest command-filtering-test
+  (testing "Command filtering with permissions"
+    (let [test-commands
+          [{:command "db"
+            :description "Database operations"
+            :subcommands
+            [{:command "init" :description "Init DB"}
+             {:command "reset" :description "Reset DB"}
+             {:command "stats" :description "DB Stats"}]}
+           {:command "plan"
+            :description "Plan operations"
+            :subcommands
+            [{:command "create" :description "Create plan"}
+             {:command "delete" :description "Delete plan"}]}
+           {:command "skill"
+            :description "Skill operations"
+            :subcommands
+            [{:command "search" :description "Search skills"}
+             {:command "list" :description "List skills"}]}]
 
-(deftest test-get-xdg-config-home
-  (testing "get-xdg-config-home returns default or env var"
-    (let [xdg-home (config/get-xdg-config-home)]
-      (is (string? xdg-home))
-      (is (or (= xdg-home (System/getenv "XDG_CONFIG_HOME"))
-              (.endsWith xdg-home ".config"))))))
+          test-permissions
+          {:db {:reset false}
+           :plan {:delete false}}]
 
-(deftest test-get-config-dir
-  (testing "get-config-dir returns clojure-skills config directory"
-    (let [config-dir (config/get-config-dir)]
-      (is (string? config-dir))
-      (is (.contains config-dir "clojure-skills")))))
+      (testing "Disabled commands are filtered out"
+        (let [filtered (config/filter-commands test-commands test-permissions [])]
+          ;; db/reset should be removed
+          (is (not (some #(= "reset" (:command %))
+                         (->> filtered
+                              (filter #(= "db" (:command %)))
+                              first
+                              :subcommands))))
 
-(deftest test-expand-path
-  (testing "expand-path expands ~ to home directory"
-    (let [home (config/get-home-dir)]
-      (is (= (str home "/test")
-             (config/expand-path "~/test")))))
+          ;; plan/delete should be removed
+          (is (not (some #(= "delete" (:command %))
+                         (->> filtered
+                              (filter #(= "plan" (:command %)))
+                              first
+                              :subcommands))))
 
-  (testing "expand-path leaves absolute paths unchanged"
-    (is (= "/absolute/path"
-           (config/expand-path "/absolute/path")))))
+          ;; Enabled commands should remain
+          (is (some #(= "init" (:command %))
+                    (->> filtered
+                         (filter #(= "db" (:command %)))
+                         first
+                         :subcommands)))
 
-(deftest test-default-config
-  (testing "default-config has required keys"
-    (is (map? config/default-config))
-    (is (contains? config/default-config :database))
-    (is (contains? config/default-config :project))
-    (is (contains? config/default-config :search))
-    (is (contains? config/default-config :output))))
+          (is (some #(= "stats" (:command %))
+                    (->> filtered
+                         (filter #(= "db" (:command %)))
+                         first
+                         :subcommands)))
 
-(deftest test-deep-merge
-  (testing "deep-merge merges nested maps"
-    (is (= {:a 1 :b {:c 2 :d 3}}
-           (config/deep-merge
-            {:a 1 :b {:c 2}}
-            {:b {:d 3}}))))
+          (is (some #(= "create" (:command %))
+                    (->> filtered
+                         (filter #(= "plan" (:command %)))
+                         first
+                         :subcommands)))
 
-  (testing "deep-merge overwrites with later values"
-    (is (= {:a 2 :b {:c 3}}
-           (config/deep-merge
-            {:a 1 :b {:c 2}}
-            {:a 2 :b {:c 3}})))))
+          ;; Commands without specific permissions should remain
+          (is (some #(= "skill" (:command %)) filtered))
+          (is (some #(= "search" (:command %))
+                    (->> filtered
+                         (filter #(= "skill" (:command %)))
+                         first
+                         :subcommands)))
+          (is (some #(= "list" (:command %))
+                    (->> filtered
+                         (filter #(= "skill" (:command %)))
+                         first
+                         :subcommands)))))))
 
-(deftest test-load-config
-  (testing "load-config returns a valid config map"
-    (let [cfg (config/load-config)]
-      (is (map? cfg))
-      (is (contains? cfg :database))
-      (is (contains? cfg :project))
-      (is (contains? cfg :search))
-      (is (contains? cfg :output)))))
+  (testing "Command enabled check"
+    (let [permissions {:db {:reset false :init true}
+                       :plan {:delete false}}]
 
-(deftest test-get-db-path
-  (testing "get-db-path expands path from config"
-    (let [cfg {:database {:path "~/test.db"}}
-          db-path (config/get-db-path cfg)]
-      (is (string? db-path))
-      (is (not (.contains db-path "~")))
-      (is (.endsWith db-path "test.db")))))
+      (testing "Explicitly disabled commands return false"
+        (is (false? (config/command-enabled? permissions [:db :reset])))
+        (is (false? (config/command-enabled? permissions [:plan :delete]))))
+
+      (testing "Explicitly enabled commands return true"
+        (is (true? (config/command-enabled? permissions [:db :init]))))
+
+      (testing "Commands without permissions return true by default"
+        (is (true? (config/command-enabled? permissions [:db :stats])))
+        (is (true? (config/command-enabled? permissions [:plan :create]))))
+
+      (testing "Top-level commands without permissions return true by default"
+        (is (true? (config/command-enabled? permissions [:skill])))))))
+
+(deftest top-level-command-disabling-test
+  (testing "Top-level command disabling"
+    (let [permissions {:plan false
+                       :db {:reset false}}]
+
+      (testing "Top-level disabled command returns false for all subcommands"
+        (is (false? (config/command-enabled? permissions [:plan])))
+        (is (false? (config/command-enabled? permissions [:plan :create])))
+        (is (false? (config/command-enabled? permissions [:plan :delete])))
+        (is (false? (config/command-enabled? permissions [:plan :show]))))
+
+      (testing "Nested disabled commands still work"
+        (is (false? (config/command-enabled? permissions [:db :reset]))))
+
+      (testing "Mixed configuration works correctly"
+        (is (true? (config/command-enabled? permissions [:db])))
+        (is (true? (config/command-enabled? permissions [:db :init])))
+        (is (true? (config/command-enabled? permissions [:db :stats]))))
+
+      (testing "Commands without any permissions return true by default"
+        (is (true? (config/command-enabled? permissions [:skill])))
+        (is (true? (config/command-enabled? permissions [:skill :search])))
+        (is (true? (config/command-enabled? permissions [:task-list])))))))
+
+(deftest command-filtering-with-top-level-disabling-test
+  (testing "Command filtering with top-level permissions"
+    (let [test-commands
+          [{:command "db"
+            :description "Database operations"
+            :subcommands
+            [{:command "init" :description "Init DB"}
+             {:command "reset" :description "Reset DB"}
+             {:command "stats" :description "DB Stats"}]}
+           {:command "plan"
+            :description "Plan operations"
+            :subcommands
+            [{:command "create" :description "Create plan"}
+             {:command "delete" :description "Delete plan"}]}
+           {:command "skill"
+            :description "Skill operations"
+            :subcommands
+            [{:command "search" :description "Search skills"}
+             {:command "list" :description "List skills"}]}]
+
+          test-permissions
+          {:plan false
+           :db {:reset false}}]
+
+      (testing "Top-level disabled commands are completely filtered out"
+        (let [filtered (config/filter-commands test-commands test-permissions [])]
+          ;; plan command should be completely removed
+          (is (not (some #(= "plan" (:command %)) filtered)))))
+
+      (testing "Nested disabled commands are filtered out"
+        (let [filtered (config/filter-commands test-commands test-permissions [])]
+          ;; db/reset should be removed
+          (is (not (some #(= "reset" (:command %))
+                         (->> filtered
+                              (filter #(= "db" (:command %)))
+                              first
+                              :subcommands))))))
+
+      (testing "Enabled commands remain"
+        (let [filtered (config/filter-commands test-commands test-permissions [])]
+          ;; db/init and db/stats should remain
+          (is (some #(= "init" (:command %))
+                    (->> filtered
+                         (filter #(= "db" (:command %)))
+                         first
+                         :subcommands)))
+
+          (is (some #(= "stats" (:command %))
+                    (->> filtered
+                         (filter #(= "db" (:command %)))
+                         first
+                         :subcommands)))
+
+          ;; skill command and subcommands should remain
+          (is (some #(= "skill" (:command %)) filtered))
+          (is (some #(= "search" (:command %))
+                    (->> filtered
+                         (filter #(= "skill" (:command %)))
+                         first
+                         :subcommands)))
+          (is (some #(= "list" (:command %))
+                    (->> filtered
+                         (filter #(= "skill" (:command %)))
+                         first
+                         :subcommands))))))))

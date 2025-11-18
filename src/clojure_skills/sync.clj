@@ -15,12 +15,15 @@
    (java.security
     MessageDigest)))
 
+(set! *warn-on-reflection* true)
+
 (defn compute-hash
   "Compute SHA-256 hash of file content."
-  [content]
-  (let [digest (MessageDigest/getInstance "SHA-256")
-        bytes (.digest digest (.getBytes content "UTF-8"))]
-    (apply str (map #(format "%02x" %) bytes))))
+  ^String [^String content]
+  (when content
+    (let [^MessageDigest digest (MessageDigest/getInstance "SHA-256")
+          ^bytes bytes (.digest digest (.getBytes content "UTF-8"))]
+      (apply str (map #(format "%02x" %) bytes)))))
 
 (defn extract-frontmatter
   "Extract YAML frontmatter from markdown content.

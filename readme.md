@@ -229,6 +229,105 @@ clojure-skills db reset --force
 
 **Note:** This will delete all data including implementation plans and tasks.
 
+### Command Permissions
+
+You can disable specific CLI commands by configuring permissions in your config file. This is useful for restricting dangerous operations in shared environments or creating custom CLI distributions.
+
+**Configuration format:**
+
+Add a `:permissions` section to your `~/.config/clojure-skills/config.edn` file:
+
+```edn
+{:permissions
+ {:db {:reset false}
+  :plan {:delete false}}}
+```
+
+In this example:
+- `clojure-skills db reset` will be completely hidden from the CLI
+- `clojure-skills plan delete` will be completely hidden from the CLI
+- All other commands remain available
+
+**Permission rules:**
+- Commands are identified by their full path (e.g., `:db :reset`)
+- `false` disables the command (completely hides it)
+- `true` or omitting the key enables the command
+- Nested command structures are preserved
+
+**Top-level command disabling:**
+
+You can also disable entire command trees with a single setting:
+
+```edn
+{:permissions
+ {:plan false}}  ; Disables ALL plan subcommands
+```
+
+With this configuration:
+- `clojure-skills plan create` will be hidden
+- `clojure-skills plan delete` will be hidden
+- `clojure-skills plan show` will be hidden
+- All other plan subcommands will be hidden
+- The entire `plan` command will be completely removed from the CLI
+
+**Mixed configuration example:**
+
+```edn
+{:permissions
+ {:plan false              ; Disable entire plan command tree
+  :db {:reset false}       ; Disable only db reset
+  :task-list {:delete false}}} ; Disable only task-list delete
+```
+
+**Example configuration to disable all destructive operations:**
+
+Using top-level disabling for simpler configuration:
+
+```edn
+{:permissions
+ {:db {:reset false}
+  :plan false
+  :task-list {:delete false}
+  :task {:delete false}}}
+```
+
+Or using entirely top-level disabling:
+
+```edn
+{:permissions
+ {:db {:reset false}
+  :plan false
+  :task-list false
+  :task false}}
+```
+
+**Applying configuration:**
+
+1. Edit your config file:
+   ```bash
+   # Create config if it doesn't exist
+   clojure-skills db init
+   
+   # Edit the config file
+   nano ~/.config/clojure-skills/config.edn
+   ```
+
+2. Add the permissions configuration as shown above
+
+3. The changes take effect immediately - no restart required
+
+**Verification:**
+
+After applying permissions, disabled commands will no longer appear in help text:
+
+```bash
+# Before permissions - shows reset command
+clojure-skills db --help
+
+# After permissions - reset command is hidden
+clojure-skills db --help
+```
+
 ---
 
 ## Task Tracking

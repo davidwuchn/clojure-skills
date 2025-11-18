@@ -11,12 +11,12 @@
    [clojure.java.io :as io]
    [clojure.string :as str]))
 
+(set! *warn-on-reflection* true)
 
 (defn get-home-dir
   "Get user's home directory."
   []
   (System/getProperty "user.home"))
-
 
 (defn get-xdg-config-home
   "Get XDG config directory, defaulting to ~/.config"
@@ -24,12 +24,10 @@
   (or (System/getenv "XDG_CONFIG_HOME")
       (str (get-home-dir) "/.config")))
 
-
 (defn get-config-dir
   "Get clojure-skills config directory."
   []
   (str (get-xdg-config-home) "/clojure-skills"))
-
 
 (defn expand-path
   "Expand ~ in paths to home directory."
@@ -37,7 +35,6 @@
   (if (str/starts-with? path "~")
     (str/replace-first path "~" (get-home-dir))
     path))
-
 
 (def default-config
   "Default configuration values."
@@ -57,14 +54,15 @@
 
    :output
    {:format :table
-    :color true}})
+    :color true}
 
+   :permissions
+   {}})
 
 (defn get-config-file-path
   "Get path to config.edn file."
   []
   (str (get-config-dir) "/config.edn"))
-
 
 (defn load-config-file
   "Load configuration from file if it exists."
@@ -77,7 +75,6 @@
           (log/log-warning "Failed to load config file" :path config-path :error (.getMessage e))
           nil)))))
 
-
 (defn get-env-overrides
   "Get configuration overrides from environment variables."
   []
@@ -87,7 +84,6 @@
 
     (System/getenv "CLOJURE_SKILLS_PROJECT_ROOT")
     (assoc-in [:project :root] (System/getenv "CLOJURE_SKILLS_PROJECT_ROOT"))))
-
 
 (defn deep-merge
   "Recursively merge maps."
@@ -99,7 +95,6 @@
              v2))
          maps))
 
-
 (defn load-config
   "Load configuration with priority:
    1. Environment variables
@@ -110,12 +105,10 @@
         env-config (get-env-overrides)]
     (deep-merge default-config file-config env-config)))
 
-
 (defn get-db-path
   "Get database path with expansion."
   [config]
   (expand-path (get-in config [:database :path])))
-
 
 (defn ensure-config-dir
   "Ensure config directory exists."
@@ -124,13 +117,66 @@
     (when-not (.exists (io/file config-dir))
       (.mkdirs (io/file config-dir)))))
 
-
 (defn save-config
   "Save configuration to file."
   [config]
   (ensure-config-dir)
   (spit (get-config-file-path) (pr-str config)))
 
+(defn command-enabled?
+  "Check if a command is enabled based on permissions configuration.
+   Permissions is a nested map where false means disabled and true/missing means enabled.
+   Path is a vector of keywords representing the command hierarchy.
+   
+   Supports both top-level disabling (e.g., {:plan false}) and nested disabling (e.g., {:plan {:delete false}})
+   
+   Example permissions structure:
+   {:db {:reset false :init true}
+    :plan false  ; Disables entire plan command tree
+    :task-list {:delete false}} ; Disables only task-list delete"
+  [permissions path]
+  (if (empty? path)
+    true
+    (let [top-level-key (first path)]
+      (if-let [top-level-setting (find permissions top-level-key)]
+        ;; Top-level key exists in permissions
+        (let [value (val top-level-setting)]
+          (if (false? value)
+            ;; If top-level command is explicitly disabled, entire tree is disabled
+            false
+            ;; If top-level setting is not false, check nested path
+            (let [enabled (get-in permissions path true)]
+              (if (boolean? enabled) enabled true))))
+        ;; Top-level key doesn't exist, check nested path from root
+        (let [enabled (get-in permissions path true)]
+          (if (boolean? enabled) enabled true))))))
+
+(defn filter-commands
+  "Filter CLI commands based on permissions configuration.
+   Commands with subcommands are recursively filtered.
+   Path represents the current command hierarchy as a vector of keywords."
+  [commands permissions path]
+  (->> commands
+       (filter
+        (fn [cmd]
+          (let [command-key (keyword (:command cmd))
+                new-path (conj path command-key)]
+            (if (:subcommands cmd)
+               ;; For commands with subcommands, recursively filter them
+              (let [filtered-subcommands (filter-commands (:subcommands cmd) permissions new-path)]
+                (seq filtered-subcommands)) ; Only keep if there are subcommands left
+               ;; For leaf commands, check permissions
+              (command-enabled? permissions new-path)))))
+       (mapv
+        (fn [cmd]
+          (let [command-key (keyword (:command cmd))
+                new-path (conj path command-key)]
+            (if (:subcommands cmd)
+               ;; For commands with subcommands, recursively filter them
+              (let [filtered-subcommands (filter-commands (:subcommands cmd) permissions new-path)]
+                (assoc cmd :subcommands filtered-subcommands))
+               ;; For leaf commands, keep as is
+              cmd))))))
 
 (defn init-config
   "Initialize configuration if it doesn't exist."
