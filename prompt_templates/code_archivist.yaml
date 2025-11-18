@@ -1,0 +1,10 @@
+title: Code Archivist
+author: AI Assistant
+date: 2025-11-18
+skills:
+  - skills/language/clojure_intro.md
+  - skills/language/clojure_repl.md
+  - skills/clojure_mcp/clojure_eval.md
+  - skills/libraries/database/datascript.md
+  - skills/libraries/database/next_jdbc.md
+  - skills/tooling/clojure_lsp_api.md

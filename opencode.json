@@ -22,8 +22,23 @@
         "edit": "ask"
       }
     },
-
-
+    "code_archivist": {
+      "model": "anthropic/claude-sonnet-4-5",
+      "prompt": "{file:./_build/clojure_build.md}",
+      "tools": {
+        "write": true,
+        "edit": true,
+        "read": false,
+        "bash": true,
+        "todowrite": false,
+        "todoread": false,
+        "clojure-mcp_scratch_pad": false
+      },
+      "permission": {
+        "write": "ask",
+        "edit": "ask"
+      }
+    },
     "clojure_skill_builder": {
       "model": "anthropic/claude-sonnet-4-5",
       "prompt": "{file:./_build/clojure_skill_builder.md}",
