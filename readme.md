@@ -12,7 +12,7 @@ A searchable knowledge base of Clojure development skills with a powerful CLI fo
 
 ## What Is This?
 
-**Clojure Skills** is a curated collection of 73+ skills covering Clojure development, organized in a SQLite database with full-text search. Each skill is a focused markdown document teaching a specific topic:
+**Clojure Skills** is a curated collection of 75 skills covering Clojure development, organized in a SQLite database with full-text search. Each skill is a focused markdown document teaching a specific topic:
 
 - **Language fundamentals** - Clojure intro, REPL-driven development
 - **Libraries** (50+) - Malli, next.jdbc, http-kit, Ring, Kaocha, and more
@@ -23,9 +23,9 @@ Skills can be searched, viewed individually, or composed together into complete 
 
 **Core features:**
 - Full-text search with SQLite FTS5
-- 73 skills across 28 categories
+- 75 skills across 29 categories
 - CLI tool for instant access
-- Task tracking for complex implementations
+- Task tracking with searchable plan summaries for complex implementations
 - Build system for composing custom prompts
 
 ---
@@ -77,13 +77,13 @@ The native binary will be created at `target/clojure-skills` and can be moved to
 **Verify installation:**
 
 ```bash
-clojure-skills stats
+clojure-skills db stats
 
 # Should show:
-# - 73 skills
+# - 75 skills
 # - 5 prompts
-# - 28 categories
-# - ~876KB total size
+# - 29 categories
+# - ~927KB total size
 ```
 
 ---
@@ -99,16 +99,16 @@ The `clojure-skills` CLI is your primary interface for working with the skills d
 clojure-skills --help
 
 # Search for skills about a topic
-clojure-skills search "validation"
+clojure-skills skill search "validation"
 
 # List all skills in a category
-clojure-skills list-skills -c libraries/database
+clojure-skills skill list -c libraries/database
 
 # View a skill's full content
-clojure-skills show-skill malli -c libraries/data_validation
+clojure-skills skill show malli -c libraries/data_validation
 
 # Get database statistics
-clojure-skills stats
+clojure-skills db stats
 ```
 
 ### Searching Skills
@@ -116,24 +116,17 @@ clojure-skills stats
 **Basic search** - finds skills by content match:
 
 ```bash
-# Search all skills and prompts
-clojure-skills search "http server"
+# Search skills
+clojure-skills skill search "http server"
 
-# Search only skills
-clojure-skills search "validation" -t skills
-
-# Search only prompts
-clojure-skills search "agent" -t prompts
+# Search within a specific category
+clojure-skills skill search "query" -c libraries/database
 
 # Limit results
-clojure-skills search "database" -n 10
-```
+clojure-skills skill search "database" -n 10
 
-**Filter by category:**
-
-```bash
-# Search within a specific category
-clojure-skills search "query" -c libraries/database
+# Search prompts
+clojure-skills prompt search "agent"
 ```
 
 **Example output:**
@@ -159,20 +152,20 @@ Found 5 skills
 **List all skills:**
 
 ```bash
-clojure-skills list-skills
+clojure-skills skill list
 ```
 
 **List by category:**
 
 ```bash
 # Database skills
-clojure-skills list-skills -c libraries/database
+clojure-skills skill list -c libraries/database
 
 # Testing skills
-clojure-skills list-skills -c testing
+clojure-skills skill list -c testing
 
 # Language fundamentals
-clojure-skills list-skills -c language
+clojure-skills skill list -c language
 ```
 
 **Available categories:**
@@ -193,44 +186,24 @@ tooling/               - cider, clj-kondo, babashka
 
 ### Viewing Skills
 
-**Show a skill's full content as JSON:**
+**Show a skill's full content:**
 
 ```bash
 # Basic usage
-clojure-skills show-skill malli
+clojure-skills skill show malli
 
 # Specify category to avoid ambiguity
-clojure-skills show-skill malli -c libraries/data_validation
+clojure-skills skill show malli -c libraries/data_validation
 ```
 
-**Extract just the markdown content:**
-
-```bash
-clojure-skills show-skill malli | jq -r '.skills/content'
-```
-
-**JSON output includes:**
-
-```json
-{
-  "skills/name": "malli",
-  "skills/category": "libraries/data_validation",
-  "skills/description": "Validate data structures...",
-  "skills/content": "# Malli Data Validation\n\n...",
-  "skills/size_bytes": 11089,
-  "skills/token_count": 2772,
-  "skills/path": "/path/to/skill.md",
-  "skills/created_at": "2025-11-12 16:46:18",
-  "skills/updated_at": "2025-11-12 16:46:18"
-}
-```
+**Output includes metadata and full markdown content.**
 
 ### Database Statistics
 
 **View overall statistics:**
 
 ```bash
-clojure-skills stats
+clojure-skills db stats
 ```
 
 **Output shows:**
@@ -245,13 +218,13 @@ clojure-skills stats
 
 ```bash
 # After adding or modifying skill files
-clojure-skills sync
+clojure-skills db sync
 ```
 
 **Reset database (destructive):**
 
 ```bash
-clojure-skills reset-db --force
+clojure-skills db reset --force
 ```
 
 **Note:** This will delete all data including implementation plans and tasks.
@@ -283,85 +256,89 @@ The CLI includes a task tracking system for managing complex, multi-step impleme
 
 ```bash
 # Create a plan
-clojure-skills create-plan \
+clojure-skills plan create \
   --name "api-refactor" \
   --title "Refactor REST API" \
-  --description "Modernize API with validation" \
+  --summary "Modernize API with better validation, error handling, and documentation" \
+  --description "Detailed description of the refactoring effort" \
   --status "in-progress"
 
 # List plans
-clojure-skills list-plans
-clojure-skills list-plans --status "in-progress"
+clojure-skills plan list
+clojure-skills plan list --status "in-progress"
 
-# Show plan details (includes task list and task IDs)
-clojure-skills show-plan 1           # By ID
-clojure-skills show-plan api-refactor # By name
+# Show plan details (includes summary, task lists, and task IDs)
+clojure-skills plan show 1           # By ID
+clojure-skills plan show api-refactor # By name
 
 # The show-plan output displays:
-# - Plan metadata
+# - Plan metadata (ID, name, status, title, summary, description)
 # - Associated skills
 # - Task lists with IDs: [ID] Task List Name
 # - Tasks with IDs: ✓ [ID] Task Name (completed) or ○ [ID] Task Name
 
-# Update plan
-clojure-skills update-plan 1 --status "completed"
+# Update plan (including summary)
+clojure-skills plan update 1 --status "completed"
+clojure-skills plan update 1 --summary "New searchable summary text"
 
 # Mark complete
-clojure-skills complete-plan 1
+clojure-skills plan complete 1
 
 # Delete plan (requires --force)
-clojure-skills delete-plan 1 --force
-clojure-skills delete-plan "api-refactor" --force  # By name
+clojure-skills plan delete 1 --force
+clojure-skills plan delete "api-refactor" --force  # By name
 ```
+
+**Note:** The `--summary` field is searchable via FTS5 full-text search and appears in plan listings. It's designed for concise descriptions (max 1000 chars) that help you quickly understand what a plan is about.
 
 **Task Lists:**
 
 ```bash
 # Create task list for a plan
-clojure-skills create-task-list 1 \
+clojure-skills plan task-list create 1 \
   --name "Phase 1: Database Setup" \
   --description "Create schema and migrations"
 
 # Show task list details with all tasks
-clojure-skills show-task-list 1
+clojure-skills task-list show 1
 
 # Delete task list (requires --force)
-clojure-skills delete-task-list 1 --force
+clojure-skills task-list delete 1 --force
 ```
 
 **Tasks:**
 
 ```bash
 # Create task in a task list
-clojure-skills create-task 1 \
+clojure-skills task-list task create 1 \
   --name "Create users table migration" \
   --description "Add migration for users table"
 
 # Show task details
-clojure-skills show-task 1
+clojure-skills task show 1
 
 # Mark task complete
-clojure-skills complete-task 1
+clojure-skills task complete 1
 
 # Delete task (requires --force)
-clojure-skills delete-task 1 --force
+clojure-skills task delete 1 --force
 ```
 
 **Plan-Skill Associations:**
 
 ```bash
 # Associate a skill with a plan
-clojure-skills associate-skill 1 "malli" --position 1
-clojure-skills associate-skill 1 "next_jdbc" --position 2
+clojure-skills plan skill associate 1 "malli" --position 1
+clojure-skills plan skill associate 1 "next_jdbc" --position 2
 
 # List skills associated with a plan
-clojure-skills list-plan-skills 1
+clojure-skills plan skill list 1
 
 # Remove skill association
-clojure-skills dissociate-skill 1 "malli"
+clojure-skills plan skill dissociate 1 "malli"
 
 # View associated skills in show-plan
-clojure-skills show-plan 1
+clojure-skills plan show 1
 ```
 
 **Why associate skills?**
@@ -373,51 +350,52 @@ clojure-skills show-plan 1
 ### Example Workflow
 
 ```bash
-# 1. Create plan
-clojure-skills create-plan \
+# 1. Create plan with searchable summary
+clojure-skills plan create \
   --name "user-auth" \
   --title "Add User Authentication" \
+  --summary "Implement JWT-based auth with password hashing, session management, and refresh tokens" \
   --status "in-progress"
 # Returns: Plan ID: 1
 
 # 2. Associate relevant skills
-clojure-skills associate-skill 1 "next_jdbc" --position 1
-clojure-skills associate-skill 1 "honeysql" --position 2
-clojure-skills associate-skill 1 "buddy" --position 3
+clojure-skills plan skill associate 1 "next_jdbc" --position 1
+clojure-skills plan skill associate 1 "honeysql" --position 2
+clojure-skills plan skill associate 1 "buddy" --position 3
 
 # 3. Create phases (task lists)
-clojure-skills create-task-list 1 --name "Phase 1: Database"
-clojure-skills create-task-list 1 --name "Phase 2: Core Logic"
-clojure-skills create-task-list 1 --name "Phase 3: API Endpoints"
-clojure-skills create-task-list 1 --name "Phase 4: Testing"
+clojure-skills plan task-list create 1 --name "Phase 1: Database"
+clojure-skills plan task-list create 1 --name "Phase 2: Core Logic"
+clojure-skills plan task-list create 1 --name "Phase 3: API Endpoints"
+clojure-skills plan task-list create 1 --name "Phase 4: Testing"
 
-# 4. Add tasks to Phase 1
-clojure-skills create-task 1 --name "Create users table"
-clojure-skills create-task 1 --name "Create sessions table"
-clojure-skills create-task 1 --name "Add password hashing"
+# 4. Add tasks to Phase 1 (task list ID 1)
+clojure-skills task-list task create 1 --name "Create users table"
+clojure-skills task-list task create 1 --name "Create sessions table"
+clojure-skills task-list task create 1 --name "Add password hashing"
 
 # 5. Before starting work, review associated skills
-clojure-skills list-plan-skills 1
-clojure-skills show-skill "next_jdbc" | jq -r '.skills/content' | head -100
+clojure-skills plan skill list 1
+clojure-skills skill show "next_jdbc"
 
 # 6. Work through tasks
-clojure-skills complete-task 1
-clojure-skills complete-task 2
+clojure-skills task complete 1
+clojure-skills task complete 2
 
 # 7. Check progress
-clojure-skills show-plan 1        # Shows all task lists and tasks with IDs
+clojure-skills plan show 1        # Shows summary, task lists, and tasks with IDs
 
 # 8. Review specific task list (optional)
-clojure-skills show-task-list 1   # Shows task list details and all its tasks
+clojure-skills task-list show 1   # Shows task list details and all its tasks
 
 # 9. Review specific task (optional)
-clojure-skills show-task 1        # Shows task details with timestamps
+clojure-skills task show 1        # Shows task details with timestamps
 
 # 10. When finished
-clojure-skills complete-plan 1
+clojure-skills plan complete 1
 
 # 11. Later, if you need to clean up
-clojure-skills delete-plan 1 --force  # Deletes plan, lists, and tasks
+clojure-skills plan delete 1 --force  # Deletes plan, lists, and tasks
 ```
 
 ### Deleting Plans, Lists, and Tasks
@@ -426,13 +404,13 @@ All delete commands require the `--force` flag as a safety measure:
 
 ```bash
 # Delete a plan (cascades to all task lists and tasks)
-clojure-skills delete-plan <ID-OR-NAME> --force
+clojure-skills plan delete <ID-OR-NAME> --force
 
 # Delete a task list (cascades to all tasks in the list)
-clojure-skills delete-task-list <TASK-LIST-ID> --force
+clojure-skills task-list delete <TASK-LIST-ID> --force
 
 # Delete a single task
-clojure-skills delete-task <TASK-ID> --force
+clojure-skills task delete <TASK-ID> --force
 ```
 
 **Safety features:**
@@ -445,7 +423,7 @@ clojure-skills delete-task <TASK-ID> --force
 
 ```bash
 # See what would be deleted (without --force)
-$ clojure-skills delete-plan 1
+$ clojure-skills plan delete 1
 ERROR: This will DELETE the following:
   Plan: user-auth
   Task Lists: 4
@@ -454,11 +432,11 @@ ERROR: This will DELETE the following:
 Use --force to confirm deletion.
 
 # Actually delete (with --force)
-$ clojure-skills delete-plan 1 --force
+$ clojure-skills plan delete 1 --force
 SUCCESS: Deleted plan: user-auth
 
 # Delete by name instead of ID
-$ clojure-skills delete-plan "user-auth" --force
+$ clojure-skills plan delete "user-auth" --force
 SUCCESS: Deleted plan: user-auth
 ```
 
@@ -467,11 +445,11 @@ SUCCESS: Deleted plan: user-auth
 **Show Plan** - Displays complete plan hierarchy:
 
 ```bash
-clojure-skills show-plan 1
+clojure-skills plan show 1
 ```
 
 **Output includes:**
-- Plan metadata (ID, name, status, timestamps)
+- Plan metadata (ID, name, status, title, summary, description, timestamps)
 - Associated skills with positions
 - Task lists with IDs: `[22] Phase 1: Database Setup`
 - Tasks with IDs and status: `✓ [80] Create users table` or `○ [81] Create sessions table`
@@ -481,7 +459,7 @@ This hierarchical view shows all IDs needed for subsequent commands.
 **Show Task List** - Displays task list details:
 
 ```bash
-clojure-skills show-task-list 22
+clojure-skills task-list show 22
 ```
 
 **Output includes:**
@@ -497,7 +475,7 @@ clojure-skills show-task-list 22
 **Show Task** - Displays individual task details:
 
 ```bash
-clojure-skills show-task 80
+clojure-skills task show 80
 ```
 
 **Output includes:**
@@ -693,7 +671,7 @@ opencode --model anthropic/claude-3-5-sonnet-20241022 --agent my-clojure-agent
 
 ```bash
 # 1. Search for relevant skills
-clojure-skills search "validation database testing"
+clojure-skills skill search "validation database testing"
 
 # 2. Create a custom prompt with those skills
 cat > prompts/data_specialist.md <<'EOF'
@@ -770,13 +748,13 @@ opencode run --agent clojure-skill-builder \
 ls -lh skills/libraries/async/promesa.md
 
 # Sync to database
-clojure-skills sync
+clojure-skills db sync
 
 # Search for your new skill
-clojure-skills search "promesa"
+clojure-skills skill search "promesa"
 
 # View the skill content
-clojure-skills show-skill promesa -c libraries/async
+clojure-skills skill show promesa -c libraries/async
 ```
 
 **Interactive mode for refinement:**
@@ -922,10 +900,10 @@ description: |
 bb typos skills/your_category/your_skill.md
 
 # Sync to database
-clojure-skills sync
+clojure-skills db sync
 
 # Verify it appears
-clojure-skills search "your skill topic"
+clojure-skills skill search "your skill topic"
 ```
 
 ### Database Migrations
@@ -949,10 +927,10 @@ Migration files are in `resources/migrations/` using Ragtime format.
 
 ```
 clojure-skills/
-├── skills/                   # 73 skill markdown files
+├── skills/                   # 75 skill markdown files
 │   ├── language/
 │   ├── clojure_mcp/
-│   ├── libraries/            # 30+ categories
+│   ├── libraries/            # 29 categories
 │   ├── testing/
 │   └── tooling/
 │
@@ -1009,14 +987,14 @@ All code examples are:
 - Spell-checked
 - Reviewed for best practices
 
-**Better 73 excellent skills than 200 mediocre ones.**
+**Better 75 excellent skills than 200 mediocre ones.**
 
 ### Searchability First
 
 Full-text search with SQLite FTS5 means:
 - Find skills by any keyword
 - Search across content, not just titles
-- Fast results even with 73+ skills
+- Fast results even with 75+ skills
 - No external dependencies
 
 ---

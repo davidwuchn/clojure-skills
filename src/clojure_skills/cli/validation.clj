@@ -199,6 +199,51 @@
    [:plan-id :int]])
 
 ;; ------------------------------------------------------------
+;; Plan Result Operation Schemas
+;; ------------------------------------------------------------
+
+(def outcome-schema
+  "Schema for plan result outcome."
+  [:enum "success" "failure" "partial"])
+
+(def create-plan-result-args-schema
+  "Schema for create-plan-result command (plan result create).
+   Requires plan ID, outcome, and summary. Other fields are optional."
+  [:map
+   [:plan-id :int]
+   [:outcome outcome-schema]
+   [:summary [:string {:min 1 :max 1000}]]
+   [:challenges {:optional true} [:maybe :string]]
+   [:solutions {:optional true} [:maybe :string]]
+   [:lessons-learned {:optional true} [:maybe :string]]
+   [:metrics {:optional true} [:maybe :string]]])
+
+(def show-plan-result-args-schema
+  "Schema for show-plan-result command (plan result show).
+   Requires plan ID."
+  [:map
+   [:plan-id :int]])
+
+(def update-plan-result-args-schema
+  "Schema for update-plan-result command (plan result update).
+   Requires plan ID, all other fields are optional."
+  [:map
+   [:plan-id :int]
+   [:outcome {:optional true} [:maybe outcome-schema]]
+   [:summary {:optional true} [:maybe [:string {:min 1 :max 1000}]]]
+   [:challenges {:optional true} [:maybe :string]]
+   [:solutions {:optional true} [:maybe :string]]
+   [:lessons-learned {:optional true} [:maybe :string]]
+   [:metrics {:optional true} [:maybe :string]]])
+
+(def search-plan-results-args-schema
+  "Schema for search-plan-results command (plan result search).
+   Requires query string, max-results is optional."
+  [:map
+   [:query [:string {:min 1}]]
+   [:max-results {:optional true} [:maybe [:int {:min 1 :max 1000}]]]])
+
+;; ------------------------------------------------------------
 ;; Validation Functions
 ;; ------------------------------------------------------------
 

@@ -9,6 +9,7 @@
    [clojure-skills.config :as config]
    [clojure-skills.db.core :as db]
    [clojure-skills.db.migrate :as migrate]
+   [clojure-skills.db.plan-results :as plan-results]
    [clojure-skills.db.plan-skills :as plan-skills]
    [clojure-skills.db.plans :as plans]
    [clojure-skills.db.tasks :as tasks]
@@ -440,6 +441,31 @@
                    (when (:skills/title skill)
                      (println (format "    %s" (:skills/title skill)))))))
 
+;; Show plan result if exists
+             (let [result (plan-results/get-result-by-plan-id db (:implementation_plans/id plan))]
+               (when result
+                 (println)
+                 (println (bling/bling [:bold "Plan Result:"]))
+                 (println (str "  Outcome: " (:plan_results/outcome result)))
+                 (println)
+                 (println (str "  Summary:"))
+                 (println (str "    " (:plan_results/summary result)))
+                 (when (:plan_results/challenges result)
+                   (println)
+                   (println (str "  Challenges:"))
+                   (doseq [line (clojure.string/split-lines (:plan_results/challenges result))]
+                     (println (str "    " line))))
+                 (when (:plan_results/solutions result)
+                   (println)
+                   (println (str "  Solutions:"))
+                   (doseq [line (clojure.string/split-lines (:plan_results/solutions result))]
+                     (println (str "    " line))))
+                 (when (:plan_results/lessons_learned result)
+                   (println)
+                   (println (str "  Lessons Learned:"))
+                   (doseq [line (clojure.string/split-lines (:plan_results/lessons_learned result))]
+                     (println (str "    " line))))))
+
              ;; Show task lists and tasks
              (let [task-lists (tasks/list-task-lists-for-plan db (:implementation_plans/id plan))]
                (when (seq task-lists)
@@ -845,6 +871,145 @@
                       :title (or (:skills/title skill) "")})
                    skills)))))))))
 
+;; ------------------------------------------------------------
+;; Plan Result Commands
+;; ------------------------------------------------------------
+
+(defn cmd-create-plan-result
+  "Create a plan result."
+  [{:keys [_arguments outcome summary challenges solutions lessons-learned metrics]}]
+  (let [plan-id (first _arguments)]
+    (validate-non-blank plan-id "Plan ID cannot be empty")
+    (validate-non-blank outcome "Outcome cannot be empty")
+    (validate-non-blank summary "Summary cannot be empty")
+    (handle-command-errors
+     "Create plan result"
+     (fn []
+       (let [[_config db] (load-config-and-db)
+             ;; Validate and coerce arguments
+             args (v/coerce-and-validate!
+                   v/create-plan-result-args-schema
+                   {:plan-id plan-id
+                    :outcome outcome
+                    :summary summary
+                    :challenges challenges
+                    :solutions solutions
+                    :lessons-learned lessons-learned
+                    :metrics metrics})
+;; Build result data (remove nil values, convert kebab-case keys to snake_case)
+             result-data (-> args
+                             (clojure.set/rename-keys {:plan-id :plan_id
+                                                       :lessons-learned :lessons_learned})
+                             (#(into {} (filter (comp some? val) %))))
+             result (plan-results/create-result db result-data)]
+         (print-success (str "Created result for plan " (:plan_results/plan_id result)))
+         (println (str "Result ID: " (:plan_results/id result))))))))
+
+(defn cmd-show-plan-result
+  "Show a plan result."
+  [{:keys [_arguments]}]
+  (let [plan-id (first _arguments)]
+    (validate-non-blank plan-id "Plan ID cannot be empty")
+    (handle-command-errors
+     "Show plan result"
+     (fn []
+       (let [[_config db] (load-config-and-db)
+             args (v/coerce-and-validate!
+                   v/show-plan-result-args-schema
+                   {:plan-id plan-id})
+             result (plan-results/get-result-by-plan-id db (:plan-id args))]
+         (if result
+           (do
+             (println)
+             (println (bling/bling [:bold "Plan Result"]))
+             (println (str "ID: " (:plan_results/id result)))
+             (println (str "Plan ID: " (:plan_results/plan_id result)))
+             (println (str "Outcome: " (:plan_results/outcome result)))
+             (println)
+             (println (bling/bling [:underline "Summary:"]))
+             (println (:plan_results/summary result))
+             (when (:plan_results/challenges result)
+               (println)
+               (println (bling/bling [:underline "Challenges:"]))
+               (println (:plan_results/challenges result)))
+             (when (:plan_results/solutions result)
+               (println)
+               (println (bling/bling [:underline "Solutions:"]))
+               (println (:plan_results/solutions result)))
+             (when (:plan_results/lessons_learned result)
+               (println)
+               (println (bling/bling [:underline "Lessons Learned:"]))
+               (println (:plan_results/lessons_learned result)))
+             (when (:plan_results/metrics result)
+               (println)
+               (println (bling/bling [:underline "Metrics:"]))
+               (println (:plan_results/metrics result)))
+             (println)
+             (println (str "Created at: " (:plan_results/created_at result)))
+             (println (str "Updated at: " (:plan_results/updated_at result))))
+           (do
+             (print-error (str "Plan result not found for plan ID: " plan-id))
+             (*exit-fn* 1))))))))
+
+(defn cmd-update-plan-result
+  "Update a plan result."
+  [{:keys [_arguments outcome summary challenges solutions lessons-learned metrics]}]
+  (let [plan-id (first _arguments)]
+    (validate-non-blank plan-id "Plan ID cannot be empty")
+    (handle-command-errors
+     "Update plan result"
+     (fn []
+       (let [[_config db] (load-config-and-db)
+             ;; Validate and coerce arguments
+             args (v/coerce-and-validate!
+                   v/update-plan-result-args-schema
+                   {:plan-id plan-id
+                    :outcome outcome
+                    :summary summary
+                    :challenges challenges
+                    :solutions solutions
+                    :lessons-learned lessons-learned
+                    :metrics metrics})
+             ;; Build update data (remove nil and plan-id, convert kebab-case to snake_case)
+             update-data (-> args
+                             (dissoc :plan-id)
+                             (clojure.set/rename-keys {:lessons-learned :lessons_learned})
+                             (#(into {} (filter (comp some? val) %))))]
+         (if (empty? update-data)
+           (do
+             (print-error "No fields to update")
+             (*exit-fn* 1))
+           (do
+             (plan-results/update-result db (:plan-id args) update-data)
+             (print-success (str "Updated result for plan " (:plan-id args))))))))))
+
+(defn cmd-search-plan-results
+  "Search plan results."
+  [{:keys [_arguments max-results]}]
+  (let [query (first _arguments)]
+    (validate-non-blank query "Search query cannot be empty")
+    (handle-command-errors
+     "Search plan results"
+     (fn []
+       (let [[_config db] (load-config-and-db)
+             args (v/coerce-and-validate!
+                   v/search-plan-results-args-schema
+                   {:query query
+                    :max-results max-results})
+             results (apply plan-results/search-results
+                            db
+                            (:query args)
+                            (when (:max-results args)
+                              [:max-results (:max-results args)]))]
+         (println)
+         (println (bling/bling [:bold (format "Found %d results" (count results))]))
+         (doseq [result results]
+           (println)
+           (println (str "Plan ID: " (:plan_results/plan_id result)
+                         " | Outcome: " (:plan_results/outcome result)))
+           (println (str "Snippet: " (:snippet result)))
+           (println (str "Rank: " (:plan_results_fts/rank result)))))))))
+
 ;; CLI configuration
 
 (def cli-config
@@ -1108,7 +1273,88 @@
                  :type :int
                  :required true
                  :short 0}]
-         :runs cmd-list-plan-skills}]}]}
+         :runs cmd-list-plan-skills}]}
+
+      {:command "result"
+       :description "Plan result operations"
+       :subcommands
+       [{:command "create"
+         :description "Create a result for a completed plan"
+         :args [{:arg "plan-id"
+                 :as "Plan ID"
+                 :type :int
+                 :required true
+                 :short 0}]
+         :opts [{:option "outcome"
+                 :as "Outcome (success, failure, partial)"
+                 :type :string
+                 :required true}
+                {:option "summary"
+                 :as "Brief outcome summary (max 1000 chars, searchable)"
+                 :type :string
+                 :required true}
+                {:option "challenges"
+                 :as "What was difficult (searchable)"
+                 :type :string}
+                {:option "solutions"
+                 :as "How challenges were solved (searchable)"
+                 :type :string}
+                {:option "lessons-learned"
+                 :as "What was learned (searchable)"
+                 :type :string}
+                {:option "metrics"
+                 :as "JSON string with quantitative data"
+                 :type :string}]
+         :runs cmd-create-plan-result}
+
+        {:command "show"
+         :description "Show plan result"
+         :args [{:arg "plan-id"
+                 :as "Plan ID"
+                 :type :int
+                 :required true
+                 :short 0}]
+         :runs cmd-show-plan-result}
+
+        {:command "update"
+         :description "Update a plan result"
+         :args [{:arg "plan-id"
+                 :as "Plan ID"
+                 :type :int
+                 :required true
+                 :short 0}]
+         :opts [{:option "outcome"
+                 :as "New outcome"
+                 :type :string}
+                {:option "summary"
+                 :as "New summary"
+                 :type :string}
+                {:option "challenges"
+                 :as "New challenges"
+                 :type :string}
+                {:option "solutions"
+                 :as "New solutions"
+                 :type :string}
+                {:option "lessons-learned"
+                 :as "New lessons learned"
+                 :type :string}
+                {:option "metrics"
+                 :as "New metrics JSON"
+                 :type :string}]
+         :runs cmd-update-plan-result}
+
+        {:command "search"
+         :description "Search plan results"
+         :args [{:arg "query"
+                 :as "Search query"
+                 :type :string
+                 :required true}]
+         :opts [{:option "max-results"
+                 :short "n"
+                 :as "Maximum results to return"
+                 :type :int
+                 :default 50}]
+         :runs cmd-search-plan-results}]}]}
 
     {:command "task-list"
      :description "Task list operations"
