@@ -255,7 +255,6 @@
            (info-msg "Running tests...")
            (let [start (System/currentTimeMillis)
                  result (apply clojure (into ["-M:jvm-base:dev:test"] *command-line-args*))
-                 ;;result (clojure {:continue true} "-M:jvm-base:dev:test")
                  elapsed (- (System/currentTimeMillis) start)]
              (if (zero? (:exit result))
                (success-msg (format "Tests passed in %.2fs" (/ elapsed 1000.0)))
@@ -268,7 +267,8 @@
    :task (do
            (info-msg "Running lint task...")
            (let [start (System/currentTimeMillis)
-                 result (clojure {:continue true} "-M:lint -m clj-kondo.main --lint dev src test")
+                 result (apply clojure {:continue true}
+                               ["-M:lint -m clj-kondo.main --lint dev src test"])
                  elapsed (- (System/currentTimeMillis) start)]
              (if (zero? (:exit result))
                (success-msg (format "Lint passed in %.2fs" (/ elapsed 1000.0)))

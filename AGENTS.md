@@ -364,79 +364,6 @@ clojure-skills plan skill list 1
 clojure-skills plan skill dissociate 1 "cli_matic"
 ```
 
-### Running Tasks
-
-Use **either** `make` or `bb` (Babashka) to run tasks:
-
-#### Using Make
-
-```bash
-make                      # Build _build/clojure_build.md (default)
-make typos                # Check for typos
-make typos-fix            # Auto-fix typos
-make clean                # Remove built files
-make help                 # Show all available targets
-```
-
-#### Using Babashka
-
-```bash
-bb tasks                  # List all available tasks
-bb help                   # Show comprehensive help
-
-# Build Tasks
-bb build <name>           # Build a specific prompt
-bb build-all              # Build all prompts
-bb build-compressed <name> # Build and compress a prompt
-bb list-prompts           # List built prompts with sizes/tokens
-bb clean                  # Clean all build artifacts
-
-# Development Tasks
-bb test                   # Run tests with Kaocha
-bb lint                   # Lint with clj-kondo
-bb fmt                    # Format code with cljstyle
-bb fmt-check              # Check formatting
-bb nrepl                  # Start nREPL server (port 7889)
-bb watch [name]           # Watch and auto-rebuild on changes
-
-# Skills Management
-bb list-skills            # List all skills in table format
-bb compress-skill <path>  # Compress a single skill file
-
-# Quality Tasks
-bb typos                  # Check for typos
-bb typos-fix              # Auto-fix typos
-bb ci                     # Run full CI pipeline
-
-# Other Tasks
-bb outdated               # Check for outdated dependencies
-bb setup-python           # Install Python dependencies
-```
-
-### Task System Improvements (bb.edn)
-
-The `bb.edn` file has been enhanced with shared utility functions and better error handling:
-
-**Shared Utilities (`:init` block):**
-- `info-msg`, `success-msg`, `warning-msg`, `error-msg` - Consistent messaging
-- `require-arg` - Argument validation
-- `get-ratio-arg` - Parse compression ratios
-- `estimate-tokens` - Token count estimation (~4 chars/token)
-- `format-number` - Format numbers with thousands separators
-- `format-size` - Human-readable file sizes (KB/MB)
-- `extract-frontmatter` - Parse YAML frontmatter from skills
-- `print-table` - Generic table formatting
-
-**Benefits:**
-- Consistent error messages across all tasks
-- Proper exit codes for CI/CD integration
-- Timing information for long-running tasks
-- Better validation before executing operations
-- Reusable code reduces duplication
-
-**Note:** bb.edn uses EDN format, not full Clojure:
-- Use `(fn [x] ...)` instead of `#(...)`
-- Use `(re-pattern "...")` instead of `#"..."`
 
 ### Building Prompts
 
@@ -530,14 +457,10 @@ bb nrepl
 #### Command Line Testing (Alternative)
 
 ```bash
-# Run all tests from command line
-clojure -M:jvm-base:dev:test unit
-
 # Or use Babashka task
-bb test
-
-# Run tests with coverage
-clojure -M:dev:test -m kaocha.runner --plugin kaocha.plugin/cloverage
+bb test --help
+bb test unit
+bb test --plugin kaocha.plugin/cloverage
 ```
 
 #### Test Output
