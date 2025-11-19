@@ -80,7 +80,7 @@
               (let [result (p/shell {:out :string
                                      :err :string
                                      :continue true}
-                                    (str "pandoc --template prompt_templates/metadata.plain " file-path))]
+                                    (str "pandoc --template prompt_configs/metadata.plain " file-path))]
                 (if (zero? (:exit result))
                   (let [json-str (str/trim (:out result))]
                     (when (and (not (str/blank? json-str))
@@ -107,9 +107,9 @@
   {:doc "Build a specific prompt file by name (without .md extension)\nUsage: bb build clojure_skill_builder"
    :task (let [name (require-arg "name")
                prompt-file (str "prompts/" name ".md")
-               metadata-file (str "prompt_templates/" name ".yaml")
+               metadata-file (str "prompt_configs/" name ".yaml")
                output-file (str "_build/" name ".md")
-               template-file "prompt_templates/combine.md"]
+               template-file "prompt_configs/combine.md"]
 
            ;; Validate all required files exist
            (when-not (fs/exists? prompt-file)
@@ -475,7 +475,7 @@
                        "Watching for changes to rebuild all prompts..."))
 
            ;; Use babashka.fs/watch
-           (let [watch-paths ["prompts" "skills" "prompt_templates"]]
+           (let [watch-paths ["prompts" "skills" "prompt_configs"]]
              (apply fs/watch
                     (for [path watch-paths
                           :when (fs/exists? path)]

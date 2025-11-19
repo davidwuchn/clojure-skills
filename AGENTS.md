@@ -182,7 +182,7 @@ clojure-skills/
 │   └── tooling/         # Development tool skills
 ├── prompts/             # Composed prompts
 │   └── clojure_build.md # Example prompt composition
-├── prompt_templates/    # Templates for creating prompts
+├── prompt_configs/    # Configuration files for prompts
 │   └── template.md
 ├── resources/           # Resources
 │   └── migrations/      # Database migrations
@@ -530,7 +530,7 @@ bb list-skills
 - File size in human-readable format (KB/MB)
 - Estimated token count (Anthropic ~4 chars/token)
 - Total size and token count at bottom
-- Metadata extracted using `pandoc --template prompt_templates/metadata.plain`
+- Metadata extracted using `pandoc --template prompt_configs/metadata.plain`
 
 **Use cases:**
 - Get overview of available skills
@@ -553,7 +553,7 @@ bb watch clojure_skill_builder
 **Watches these directories:**
 - `prompts/` - Prompt definition files
 - `skills/` - Individual skill markdown files
-- `prompt_templates/` - YAML metadata and templates
+- `prompt_configs/` - YAML metadata and templates
 
 **Behavior:**
 - Triggers rebuild when `.md` files are modified
@@ -1793,7 +1793,7 @@ This helps both you and humans understand progress across sessions.
 
 1. Use `bb list-skills` to identify available skills
 2. Create prompt file with YAML frontmatter in `prompts/<name>.md`
-3. Create metadata file in `prompt_templates/<name>.yaml`
+3. Create metadata file in `prompt_configs/<name>.yaml`
 4. List skills in logical order in the YAML
 5. Add agent introduction in the prompt file
 6. Build with `bb build <name>` and verify output
