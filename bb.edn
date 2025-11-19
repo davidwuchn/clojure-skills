@@ -127,10 +127,14 @@
            (info-msg (str "Building " output-file "..."))
            (fs/create-dirs "_build")
 
-           ;; Read and validate skills
-           (let [meta-content (yaml/parse-string (slurp metadata-file))
-                 skills (get meta-content :skills [])
-                 missing-skills (filter (fn [s] (not (fs/exists? s))) skills)]
+           ;; Read and validate fragments (embedded skills)
+            ;; Note: 'references' are tracked in database but not embedded in build
+            (let [meta-content (yaml/parse-string (slurp metadata-file))
+                  ;; Try :fragments first (new format), fallback to :skills (legacy)
+                  fragments (or (get meta-content :fragments)
+                                (get meta-content :skills)
+                                [])
+                  missing-fragments (filter (fn [s] (not (fs/exists? s))) fragments)]
 
              (when (seq missing-skills)
                (error-msg "Missing skill files:")

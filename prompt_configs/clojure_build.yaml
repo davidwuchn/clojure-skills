@@ -3,7 +3,7 @@ title: Clojure Agent
 description: A general purpose system prompt designed to work with most Clojure projects.
 author: Ivan Willig
 date: 2025-11-06
-skills:
+fragments:
   # Language fundamentals
   - skills/language/clojure_intro.md
   - skills/language/clojure_repl.md
@@ -11,3 +11,4 @@ skills:
   
   # Command-line nREPL evaluation
   - skills/tooling/clojure_mcp_light.md
+references: []

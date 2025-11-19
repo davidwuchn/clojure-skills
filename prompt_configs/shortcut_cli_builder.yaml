@@ -4,9 +4,10 @@ title: Shortcut CLI Builder
 description: Specialized agent for building and maintaining the shortcut-cli project - a CLI for the Shortcut REST API
 author: Ivan Willig
 date: 2025-11-11
-skills:
+fragments:
   - skills/llm_agent/agent_loop.md
   - skills/language/clojure_intro.md
   - skills/language/clojure_repl.md
   - skills/clojure_mcp/clojure_eval.md
   - skills/tooling/clojure_mcp_light.md
+references: []

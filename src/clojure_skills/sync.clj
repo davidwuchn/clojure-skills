@@ -127,7 +127,7 @@
      :token_count token-count}))
 
 (defn parse-prompt-config-file
-  "Parse a prompt YAML configuration file and extract skill associations."
+  "Parse a prompt YAML configuration file and extract fragments and references."
   [path]
   (let [content (slurp path)
         config (yaml/parse-string content)
@@ -140,7 +140,8 @@
      :description (get config :description)
      :author (get config :author)
      :date (get config :date)
-     :skills (get config :skills [])
+     :fragments (get config :fragments (get config :skills []))  ;; Fallback to :skills for backward compatibility
+     :references (get config :references [])
      :content content}))
 
 (defn get-skill-by-path
@@ -281,13 +282,14 @@
   [db absolute-path]
   (jdbc/execute-one! db ["SELECT * FROM skills WHERE path = ?" absolute-path]))
 
-(defn sync-prompt-skills-for-config
-  "Sync prompt skills from a YAML configuration file to database using fragments model."
+(defn sync-prompt-fragments-for-config
+  "Sync prompt fragments from a YAML configuration file to database.
+   Creates a fragment with skills from the :fragments key."
   [db config-path]
   (try
     (let [config-data (parse-prompt-config-file config-path)
           prompt-name (:name config-data)
-          skill-paths (:skills config-data)
+          fragment-paths (:fragments config-data)
           prompt-record (get-prompt-by-name db prompt-name)]
       (if prompt-record
         ;; Create or get fragment for this prompt
@@ -307,7 +309,7 @@
                              (:prompt_fragments/id fragment)])
 
           ;; Add skills to fragment
-          (doseq [[idx skill-path] (map vector (range) skill-paths)]
+          (doseq [[idx skill-path] (map vector (range) fragment-paths)]
             (let [absolute-path (resolve-skill-path skill-path)
                   skill-record (get-skill-by-absolute-path db absolute-path)]
               (if skill-record
@@ -335,8 +337,8 @@
             :reference_type "fragment"
             :position 1})
 
-          (log/log-info "Synced prompt fragment" :prompt prompt-name :skills-count (count skill-paths))
-          (println (format "  Synced fragment for prompt: %s (%d skills)" prompt-name (count skill-paths))))
+          (log/log-info "Synced prompt fragment" :prompt prompt-name :skills-count (count fragment-paths))
+          (println (format "  Synced fragment for prompt: %s (%d skills)" prompt-name (count fragment-paths))))
         (do
           (log/log-warning "Prompt not found in database" :name prompt-name :config config-path)
           (println (format "  WARNING: Prompt '%s' not found in database" prompt-name)))))
@@ -344,20 +346,92 @@
       (log/log-error "Error syncing prompt fragment" :path config-path :error (.getMessage e))
       (println (format "  ERROR syncing prompt fragment from %s: %s" config-path (.getMessage e))))))
 
+(defn sync-prompt-references-for-config
+  "Sync prompt references from a YAML configuration file to database.
+   Creates separate fragments for each skill in the :references key."
+  [db config-path]
+  (try
+    (let [config-data (parse-prompt-config-file config-path)
+          prompt-name (:name config-data)
+          reference-paths (:references config-data)
+          prompt-record (get-prompt-by-name db prompt-name)]
+      (if prompt-record
+        (when (seq reference-paths)
+          ;; Clear existing reference-type prompt references (but keep fragment references)
+          (jdbc/execute! db ["DELETE FROM prompt_references 
+                             WHERE source_prompt_id = ? 
+                             AND reference_type = 'fragment'
+                             AND target_fragment_id IN (
+                               SELECT id FROM prompt_fragments 
+                               WHERE name LIKE ?
+                             )"
+                             (:prompts/id prompt-record)
+                             (str prompt-name "-ref-%")])
+
+          ;; Create a fragment for each reference
+          (doseq [[idx skill-path] (map vector (range) reference-paths)]
+            (let [absolute-path (resolve-skill-path skill-path)
+                  skill-record (get-skill-by-absolute-path db absolute-path)]
+              (if skill-record
+                (let [fragment-name (str prompt-name "-ref-" (:skills/name skill-record))
+                      fragment-title (str "Reference: " (:skills/name skill-record))
+                      existing-fragment (fragments/get-prompt-fragment-by-name db fragment-name)
+                      fragment (if existing-fragment
+                                 existing-fragment
+                                 (fragments/create-prompt-fragment
+                                  db
+                                  {:name fragment-name
+                                   :title fragment-title
+                                   :description (str "Reference skill for " prompt-name " prompt")}))]
+                  
+                  ;; Clear and add skill to fragment
+                  (jdbc/execute! db ["DELETE FROM prompt_fragment_skills WHERE fragment_id = ?"
+                                     (:prompt_fragments/id fragment)])
+                  (fragments/associate-skill-with-fragment
+                   db
+                   {:fragment_id (:prompt_fragments/id fragment)
+                    :skill_id (:skills/id skill-record)
+                    :position 0})
+                  
+                  ;; Add prompt reference to this fragment
+                  (fragments/add-prompt-reference
+                   db
+                   {:source_prompt_id (:prompts/id prompt-record)
+                    :target_fragment_id (:prompt_fragments/id fragment)
+                    :reference_type "fragment"
+                    :position (+ 100 idx)})  ;; Use 100+ for references to keep them separate
+                  
+                  (println (format "  Referenced skill: %s -> %s (position %d)"
+                                   prompt-name (:skills/name skill-record) (+ 100 idx))))
+                (do
+                  (log/log-warning "Referenced skill not found in database" :path skill-path :prompt prompt-name)
+                  (println (format "  WARNING: Referenced skill not found: %s" skill-path))))))
+          
+          (log/log-info "Synced prompt references" :prompt prompt-name :references-count (count reference-paths))
+          (println (format "  Synced references for prompt: %s (%d references)" prompt-name (count reference-paths))))
+        (do
+          (log/log-warning "Prompt not found in database" :name prompt-name :config config-path)
+          (println (format "  WARNING: Prompt '%s' not found in database" prompt-name)))))
+    (catch Exception e
+      (log/log-error "Error syncing prompt references" :path config-path :error (.getMessage e))
+      (println (format "  ERROR syncing prompt references from %s: %s" config-path (.getMessage e))))))
+
 (defn sync-all-prompt-skills
-  "Sync all prompt fragments from prompt_configs directory to database."
+  "Sync all prompt fragments and references from prompt_configs directory to database."
   [db config]
   (let [project-root (config/expand-path (or (get-in config [:project :root])
                                              (System/getProperty "user.dir")))
         configs-dir (str project-root "/prompt_configs")
         config-files (scan-prompt-config-files configs-dir)]
-    (log/log-info "Starting prompt fragments sync" :count (count config-files) :directory configs-dir)
-    (println (format "Syncing prompt fragments from %d config files in %s..." (count config-files) configs-dir))
+    (log/log-info "Starting prompt fragments and references sync" :count (count config-files) :directory configs-dir)
+    (println (format "Syncing prompt fragments and references from %d config files in %s..." (count config-files) configs-dir))
     (when (seq config-files)
       (doseq [config-file config-files]
-        (sync-prompt-skills-for-config db config-file)))
-    (log/log-success "Prompt fragments sync complete" :count (count config-files))
-    (println "Prompt fragments sync complete.")))
+        ;; Sync both fragments and references for each config
+        (sync-prompt-fragments-for-config db config-file)
+        (sync-prompt-references-for-config db config-file)))
+    (log/log-success "Prompt fragments and references sync complete" :count (count config-files))
+    (println "Prompt fragments and references sync complete.")))
 
 (defn sync-all
   "Sync all skills, prompts, and prompt skills to database."

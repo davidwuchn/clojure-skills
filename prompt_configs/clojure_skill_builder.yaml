@@ -4,7 +4,7 @@ title: Clojure Skill Builder
 description: Agent specialized in creating high-quality skill documentation for Clojure libraries, tools, and patterns
 author: Ivan Willig
 date: 2025-11-06
-skills:
+fragments:
   - skills/llm_agent/agent_loop.md
   - skills/language/clojure_intro.md
   - skills/language/clojure_repl.md
@@ -16,3 +16,4 @@ skills:
   - skills/libraries/logging/mulog.md
 
   - skills/libraries/data_formats/pretty.md
+references: []

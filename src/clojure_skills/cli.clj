@@ -289,6 +289,70 @@
                    ORDER BY pfs.position"
                   prompt-id]))
 
+(defn list-prompt-fragments
+  "List skills in embedded fragments (fragments that should be embedded in the prompt)."
+  [db prompt-id]
+  (jdbc/execute! db
+                 ["SELECT pfs.position, s.* 
+                   FROM prompt_references pr
+                   JOIN prompt_fragments pf ON pr.target_fragment_id = pf.id
+                   JOIN prompt_fragment_skills pfs ON pf.id = pfs.fragment_id
+                   JOIN skills s ON pfs.skill_id = s.id
+                   WHERE pr.source_prompt_id = ? 
+                     AND pr.reference_type = 'fragment'
+                     AND pf.name NOT LIKE '%-ref-%'
+                   ORDER BY pfs.position"
+                  prompt-id]))
+
+(defn list-prompt-references
+  "List skills in reference fragments (fragments that are tracked but not embedded)."
+  [db prompt-id]
+  (jdbc/execute! db
+                 ["SELECT pfs.position, s.* 
+                   FROM prompt_references pr
+                   JOIN prompt_fragments pf ON pr.target_fragment_id = pf.id
+                   JOIN prompt_fragment_skills pfs ON pf.id = pfs.fragment_id
+                   JOIN skills s ON pfs.skill_id = s.id
+                   WHERE pr.source_prompt_id = ? 
+                     AND pr.reference_type = 'fragment'
+                     AND pf.name LIKE '%-ref-%'
+                   ORDER BY pfs.position"
+                   prompt-id]))
+
+(defn render-prompt-content
+  "Compose full prompt content by combining prompt intro, embedded skills, and references.
+  
+  Args:
+    db - Database connection
+    prompt - Prompt map with :prompts/id and :prompts/content
+  
+  Returns:
+    String with composed markdown content"
+  [db prompt]
+  (let [fragments (list-prompt-fragments db (:prompts/id prompt))
+        references (list-prompt-references db (:prompts/id prompt))]
+    (str/join "\n\n"
+      [;; 1. Prompt introduction
+       (:prompts/content prompt)
+       
+       ;; 2. Embedded skills section
+       (when (seq fragments)
+         (str "\n## Skills\n\n"
+              "The following skills are embedded in this prompt:\n\n"
+              (str/join "\n\n"
+                (map (fn [skill]
+                       (:skills/content skill))
+                     fragments))))
+       
+       ;; 3. References section (table of contents)
+       (when (seq references)
+         (str "\n## References\n\n"
+              "The following skills are referenced but not embedded:\n\n"
+              (str/join "\n"
+                (map (fn [skill]
+                       (format "- %s" (:skills/name skill)))
+                     references))))])))
+
 (defn cmd-show-prompt
   "Show full content of a prompt with metadata and associated skills."
   [{:keys [_arguments]}]
@@ -316,13 +380,13 @@
                            " bytes (" (:prompts/token_count prompt) " tokens)"))
              (println (str "  Updated: " (:prompts/updated_at prompt)))
 
-             ;; Show associated skills if any
-             (let [skills (list-prompt-skills db (:prompts/id prompt))]
-               (when (seq skills)
+             ;; Show embedded fragments (skills that are embedded in the prompt)
+             (let [fragments (list-prompt-fragments db (:prompts/id prompt))]
+               (when (seq fragments)
                  (println)
-                 (println (bling/bling [:bold "Associated Skills:"]))
+                 (println (bling/bling [:bold "Embedded Fragments:"]))
                  (println)
-                 (doseq [skill skills]
+                 (doseq [skill fragments]
                    (println (format "%d. [%s] %s"
                                     (:prompt_fragment_skills/position skill)
                                     (:skills/category skill)
@@ -330,9 +394,24 @@
                    (when (:skills/title skill)
                      (println (format "    %s" (:skills/title skill)))))))
 
-             (println)
-             (println (bling/bling [:bold "Content:"]))
-             (println (:prompts/content prompt)))
+             ;; Show references (skills that are tracked but not embedded)
+             (let [references (list-prompt-references db (:prompts/id prompt))]
+               (when (seq references)
+                 (println)
+                 (println (bling/bling [:bold "References:"]))
+                 (println "  (Skills tracked for context but not embedded in prompt)")
+                 (println)
+                 (doseq [skill references]
+                   (println (format "%d. [%s] %s"
+                                    (:prompt_fragment_skills/position skill)
+                                    (:skills/category skill)
+                                    (:skills/name skill)))
+                   (when (:skills/title skill)
+                     (println (format "    %s" (:skills/title skill)))))))
+
+              (println)
+              (println (bling/bling [:bold "Content:"]))
+              (println (render-prompt-content db prompt)))
            (do
              (print-error (str "Prompt not found: " prompt-name))
              (*exit-fn* 1))))))))

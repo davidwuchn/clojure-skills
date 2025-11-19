@@ -4,10 +4,11 @@ title: Software Archivist Builder
 description: A system Prompt for building the Software Alchemist
 author: Ivan Willig
 date: 2025-11-15
-skills:
+fragments:
   - skills/llm_agent/agent_loop.md
   - skills/language/clojure_intro.md
   - skills/language/clojure_repl.md
   - skills/clojure_mcp/clojure_eval.md
   - skills/tooling/clojure_skills_cli.md
   - skills/tooling/clojure_mcp_light.md
+references: []

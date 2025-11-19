@@ -445,6 +445,72 @@ clojure-skills plan result update 1 --summary "Implementation complete with mino
 clojure-skills plan result search "database"
 ```
 
+### Testing CLI Changes with `bb main`
+
+**CRITICAL: Always test CLI changes with `bb main` to see live source code changes.**
+
+When you modify CLI code (e.g., `src/clojure_skills/cli.clj`), the `clojure-skills` command may use cached/compiled code and won't reflect your changes. Use `bb main` instead to test against the live source code.
+
+#### Why This Matters
+
+- **`clojure-skills`** - May be a compiled/cached version (uberjar, native binary, or old REPL state)
+- **`bb main`** - Always uses current source code from `src/`
+
+#### Testing Pattern
+
+```bash
+# After editing CLI code:
+# 1. Test in REPL first (validate logic)
+clj-nrepl-eval -p 7889 "(require '[clojure-skills.cli :reload])"
+clj-nrepl-eval -p 7889 "(lint-ns 'clojure-skills.cli)"
+
+# 2. Test with bb main (verify end-to-end)
+bb main prompt show test_fragments_refs
+bb main skill search "database"
+bb main plan show 1
+
+# DON'T test with clojure-skills directly during development
+# (unless you've rebuilt the CLI)
+```
+
+#### Common bb main Commands
+
+```bash
+# Database operations
+bb main db init
+bb main db sync
+bb main db stats
+
+# Skills
+bb main skill search "topic"
+bb main skill show "skill-name"
+bb main skill list
+
+# Prompts
+bb main prompt search "query"
+bb main prompt show "prompt-name"
+bb main prompt list
+
+# Plans and tasks
+bb main plan show 1
+bb main task complete 1
+```
+
+#### When to Rebuild the CLI
+
+You only need to rebuild the `clojure-skills` command for production use:
+
+```bash
+# Rebuild for production
+bb build-cli  # Creates native binary
+
+# Or just restart nREPL (clears cached code)
+# Stop current: Ctrl+C
+bb nrepl
+```
+
+**Development Rule: Use `bb main` for testing, `clojure-skills` for production.**
+
 
 ### Building Prompts
 
