@@ -3,8 +3,7 @@
   (:require
    [clojure.test :refer [deftest testing is]]
    [clojure-skills.config :as config]
-   [clojure.java.io :as io]
-   [clojure.edn :as edn]))
+   [clojure.java.io :as io]))
 
 (deftest command-filtering-test
   (testing "Command filtering with permissions"
@@ -221,8 +220,7 @@
 (deftest config-priority-test
   (testing "Configuration loading priority"
     ;; Test that environment variables override project config
-    (let [original-db-path (System/getenv "CLOJURE_SKILLS_DB_PATH")
-          test-db-path "/tmp/test-db-from-env.db"]
+    (let [test-db-path "/tmp/test-db-from-env.db"]
 
       ;; Temporarily set environment variable
       (with-redefs [config/get-env-overrides (fn [] {:database {:path test-db-path}})]

@@ -94,63 +94,75 @@ clj-nrepl-eval -p 7889 "(my.namespace/validate-email \"test@example.com\")"
 - `(repl/apropos "pattern")` - Search for symbols by pattern
 - `(repl/find-doc "pattern")` - Search documentation text
 
-**clj-kondo API (for linting and static analysis):**
+**dev namespace - Development Helper Functions (ALWAYS USE THESE FIRST):**
 
-The project includes `clj-kondo` for linting and static analysis. Use the API from `clj-kondo.core`:
+The `dev` namespace (defined in `dev/dev.clj`) provides convenient REPL functions for common development tasks. **ALWAYS load and use these functions instead of calling lower-level APIs directly.**
+
+```bash
+# Load the dev namespace first
+clj-nrepl-eval -p 7889 "(require '[dev :refer :all])"
+```
+
+**Available dev functions:**
+
+**Testing Functions (from kaocha.repl):**
+```bash
+# Run all tests
+clj-nrepl-eval -p 7889 "(k/run-all)"
+
+# Run specific test namespace
+clj-nrepl-eval -p 7889 "(k/run 'clojure-skills.db.migrate-test)"
+
+# Run specific test
+clj-nrepl-eval -p 7889 "(k/run 'clojure-skills.db.migrate-test/test-migrate-db)"
+```
+
+**Linting Functions (from clj-kondo):**
+```bash
+# Lint entire project (src and test)
+clj-nrepl-eval -p 7889 "(lint)"
+
+# Get lint summary statistics only
+clj-nrepl-eval -p 7889 "(lint-summary)"
+
+# Lint specific file or directory
+clj-nrepl-eval -p 7889 "(lint-file \"src/clojure_skills/main.clj\")"
+
+# Lint specific namespace (auto-converts namespace to file path)
+clj-nrepl-eval -p 7889 "(lint-ns 'clojure-skills.main)"
+```
+
+**Code Reload Functions (from clj-reload):**
+```bash
+# Reload all changed namespaces after file edits
+clj-nrepl-eval -p 7889 "(refresh)"
+```
+
+**When to use dev functions:**
+- **ALWAYS use `(lint)` instead of calling `clj-kondo/run!` directly**
+- **ALWAYS use `(k/run-all)` instead of lower-level test APIs**
+- **ALWAYS use `(refresh)` after editing files to reload changed code**
+
+**Lower-level clj-kondo API (for advanced use cases only):**
+
+Only use the clj-kondo API directly if the dev namespace functions don't meet your needs.
 - [clj-kondo API Documentation](https://cljdoc.org/d/clj-kondo/clj-kondo/CURRENT/api/clj-kondo.core)
 
-**Available functions:**
+**Advanced clj-kondo usage:**
 
 ``` clojure
 ;; Require the namespace
 (require '[clj-kondo.core :as kondo])
 
-;; Lint files or directories
-(kondo/run! {:lint ["src"]})
-;; Returns: {:findings [...] :summary {:error N :warning N :info N} :config {...}}
-
 ;; Lint with custom config
 (kondo/run! {:lint ["src"] :config {:linters {:unresolved-symbol {:level :off}}}})
 
-;; Print findings to stdout
-(-> (kondo/run! {:lint ["src"]}) kondo/print!)
-
-;; Get summary statistics
-(-> (kondo/run! {:lint ["src"]}) :summary)
-;; Returns: {:error 0 :warning 5 :info 0 :type :summary :duration 123}
-
-;; Lint stdin with language specified
-(kondo/run! {:lint ["-"] :lang :clj :filename "stdin.clj"})
-
 ;; Resolve configuration for a directory
 (kondo/resolve-config ".")
-;; Returns merged config from .clj-kondo/config.edn, home dir, and defaults
-
-;; Merge multiple configs
-(kondo/merge-configs {:linters {:unresolved-symbol {:level :warning}}}
-                     {:linters {:unused-binding {:level :error}}})
 
 ;; Get config hash (useful for cache invalidation)
 (kondo/config-hash config)
 ```
-
-**Use cases:**
-- Lint code programmatically before running tests
-- Integrate linting into custom build tools
-- Get structured analysis data for editor integration
-- Validate code in REPL during development
-
-**Example REPL workflow:**
-``` bash
-# Lint current namespace via nREPL
-clj-nrepl-eval -p 7889 "(require '[clj-kondo.core :as kondo])"
-clj-nrepl-eval -p 7889 "(-> (kondo/run! {:lint [\"src/my_namespace.clj\"]}) kondo/print!)"
-
-# Get just the summary
-clj-nrepl-eval -p 7889 "(-> (kondo/run! {:lint [\"src\"]}) :summary)"
-```
-
-**Note:** For command-line linting, use `bb lint` which wraps clj-kondo. The API is useful for programmatic linting within Clojure code.
 
 ### clojure-skills CLI - Your Knowledge Database
 
@@ -1437,20 +1449,29 @@ Prompts compose multiple skills:
 ### 4. Making Code Changes
 
 ```bash
-# 1. Create/modify code in src/
-# 2. Write tests in test/
-bb test
+# 1. Start nREPL server (if not running)
+bb nrepl
 
-# 3. Format code
+# 2. Load dev namespace
+clj-nrepl-eval -p 7889 "(require '[dev :refer :all])"
+
+# 3. Create/modify code in src/ (test in REPL first!)
+
+# 4. Write tests in test/
+
+# 5. Run tests via REPL
+clj-nrepl-eval -p 7889 "(k/run-all)"
+
+# 6. Lint code via REPL
+clj-nrepl-eval -p 7889 "(lint)"
+
+# 7. Format code
 bb fmt
 
-# 4. Lint code
-bb lint
-
-# 5. Check spelling
+# 8. Check spelling
 bb typos
 
-# 6. Run full CI pipeline
+# 9. Run full CI pipeline (before committing)
 bb ci
 ```
 
@@ -1860,9 +1881,9 @@ This helps both you and humans understand progress across sessions.
 1. Read the existing code first
 2. Check for existing tests
 3. Make changes incrementally
-4. Run tests after each change with `bb test`
-5. Format code with `bb fmt`
-6. Lint with `bb lint`
+4. Test in REPL: `clj-nrepl-eval -p 7889 "(k/run 'namespace)"`
+5. Lint in REPL: `clj-nrepl-eval -p 7889 "(lint)"`
+6. Format code with `bb fmt`
 7. Check spelling with `bb typos`
 8. Run full CI pipeline with `bb ci`
 
@@ -1955,7 +1976,10 @@ This repository is designed for **modular, composable prompt engineering** for C
 - **bash** - Execute clj-nrepl-eval and other CLI commands
 
 **Essential Commands:**
-- `clj-nrepl-eval -p 7889 "<code>"` - Evaluate Clojure code via nREPL
+- `clj-nrepl-eval -p 7889 "(require '[dev :refer :all])"` - Load dev helpers (do this first!)
+- `clj-nrepl-eval -p 7889 "(lint)"` - Lint code via REPL
+- `clj-nrepl-eval -p 7889 "(k/run-all)"` - Run all tests via REPL
+- `clj-nrepl-eval -p 7889 "(refresh)"` - Reload changed namespaces
 - `clojure-skills skill search <topic>` - Find relevant skills
 - `clojure-skills skill show <name>` - View detailed skill content
 - `clojure-skills plan create` - Start tracking complex implementations

@@ -1,10 +1,10 @@
 (ns clojure-skills.db.prompt-fragments
   "Database functions for managing prompt fragments."
   (:require
+   [clojure.string]
    [honey.sql :as sql]
    [honey.sql.helpers :as helpers :refer [select from where order-by]]
-   [next.jdbc :as jdbc]
-   [next.jdbc.sql :as jdbc-sql]))
+   [next.jdbc :as jdbc]))
 
 (defn create-prompt-fragment
   "Create a new prompt fragment.
@@ -22,18 +22,17 @@
       (throw (ex-info "Missing required keys" {:missing missing-keys}))))
 
   ;; Insert the fragment and then retrieve it
-  (do
-    (jdbc/execute! db ["INSERT INTO prompt_fragments (name, title, description) VALUES (?, ?, ?)"
-                       (:name fragment-map)
-                       (:title fragment-map)
-                       (:description fragment-map)])
+  (jdbc/execute! db ["INSERT INTO prompt_fragments (name, title, description) VALUES (?, ?, ?)"
+                     (:name fragment-map)
+                     (:title fragment-map)
+                     (:description fragment-map)])
 
-    ;; Retrieve the created fragment
-    (-> (select :*)
-        (from :prompt_fragments)
-        (where [:= :name (:name fragment-map)])
-        (sql/format)
-        (->> (jdbc/execute-one! db)))))
+  ;; Retrieve the created fragment
+  (-> (select :*)
+      (from :prompt_fragments)
+      (where [:= :name (:name fragment-map)])
+      (sql/format)
+      (->> (jdbc/execute-one! db))))
 
 (defn get-prompt-fragment-by-id
   "Get a prompt fragment by ID."
@@ -70,7 +69,7 @@
       ;; Note: Using raw SQL for UPDATE...RETURNING because HoneySQL has issues
       ;; with SQLite's RETURNING clause
       (let [set-clause (->> fields
-                            (map (fn [[k v]] (str (name k) " = ?")))
+                            (map (fn [[k _]] (str (name k) " = ?")))
                             (clojure.string/join ", "))
             values (concat (vals fields) [id])]
         (jdbc/execute-one!
