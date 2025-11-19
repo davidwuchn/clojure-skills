@@ -9,6 +9,7 @@ skills:
   - skills/clojure_mcp/clojure_eval.md
   - skills/testing/clojure_test.md
   - skills/tooling/babashka.md
+  - skills/tooling/clojure_mcp_light.md
 
   - skills/libraries/logging/mulog.md
 

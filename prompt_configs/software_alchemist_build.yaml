@@ -8,3 +8,4 @@ skills:
   - skills/language/clojure_repl.md
   - skills/clojure_mcp/clojure_eval.md
   - skills/tooling/clojure_skills_cli.md
+  - skills/tooling/clojure_mcp_light.md

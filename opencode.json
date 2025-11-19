@@ -11,11 +11,10 @@
       "tools": {
         "write": true,
         "edit": true,
-        "read": false,
+        "read": true,
         "bash": true,
         "todowrite": false,
-        "todoread": false,
-        "clojure-mcp_scratch_pad": false
+        "todoread": false
       },
       "permission": {
         "write": "ask",
@@ -28,11 +27,10 @@
       "tools": {
         "write": true,
         "edit": true,
-        "read": false,
+        "read": true,
         "bash": true,
         "todowrite": false,
         "todoread": false,
-        "clojure-mcp_scratch_pad": false
       },
       "permission": {
         "write": "ask",
@@ -45,7 +43,7 @@
       "tools": {
         "write": true,
         "edit": true,
-        "read": false,
+        "read": true,
         "bash": true,
         "todowrite": false,
         "todoread": false
@@ -62,7 +60,7 @@
       "tools": {
         "write": true,
         "edit": true,
-        "read": false,
+        "read": true,
         "bash": true,
         "todowrite": false,
         "todoread": false
@@ -73,13 +71,7 @@
       }
     }
   },
-  "mcp": {
-    "clojure-mcp": {
-      "type": "local",
-      "enabled": true,
-      "command": ["clojure", "-X:mcp", ":port", "7889"]
-    }
-  },
+  "mcp": {},
   "lsp": {
     "clojure-lsp": {
       "command": ["/opt/homebrew/bin/clojure-lsp"],

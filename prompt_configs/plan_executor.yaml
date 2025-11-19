@@ -8,6 +8,7 @@ sections:
   - skills/clojure_mcp/clojure_eval.md
   - skills/tooling/babashka.md
   - skills/tooling/clojure_skills_cli.md
+  - skills/tooling/clojure_mcp_light.md
   - skills/testing/clojure_test.md
   - skills/testing/kaocha.md
   - skills/llm_agent/agent_loop.md

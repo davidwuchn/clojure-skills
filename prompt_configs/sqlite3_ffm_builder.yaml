@@ -12,3 +12,4 @@ skills:
   - skills/testing/kaocha.md
   - skills/testing/mockfn.md
   - skills/tooling/clojure_lsp_api.md
+  - skills/tooling/clojure_mcp_light.md

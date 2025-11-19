@@ -18,7 +18,8 @@
    [clojure-skills.sync :as sync]
    [clojure.set :as set]
    [clojure.string :as str]
-   [jsonista.core :as json]))
+   [jsonista.core :as json]
+   [next.jdbc :as jdbc]))
 
 (set! *warn-on-reflection* true)
 
@@ -273,6 +274,65 @@
                 :size (format-size (or (:prompts/size_bytes prompt) 0))
                 :tokens (or (:prompts/token_count prompt) 0)})
              prompts))))))
+
+(defn list-prompt-skills
+  "List all skills associated with a prompt."
+  [db prompt-id]
+  (jdbc/execute! db
+                 ["SELECT ps.position, s.* 
+                   FROM prompt_skills ps 
+                   JOIN skills s ON ps.skill_id = s.id 
+                   WHERE ps.prompt_id = ? 
+                   ORDER BY ps.position"
+                  prompt-id]))
+
+(defn cmd-show-prompt
+  "Show full content of a prompt with metadata and associated skills."
+  [{:keys [_arguments]}]
+  (let [prompt-name (first _arguments)]
+    (validate-non-blank prompt-name "Prompt name cannot be empty")
+    (handle-command-errors
+     "Show prompt"
+     (fn []
+       (let [[_config db] (load-config-and-db)
+             prompt (search/get-prompt-by-name db prompt-name)]
+         (if prompt
+           (do
+             (println)
+             (bling/callout {:type :info :label "Prompt"}
+                            (:prompts/name prompt))
+             (println)
+             (println (bling/bling [:bold "Metadata:"]))
+             (when (:prompts/title prompt)
+               (println (str "  Title: " (:prompts/title prompt))))
+             (when (:prompts/description prompt)
+               (println (str "  Description: " (:prompts/description prompt))))
+             (when (:prompts/author prompt)
+               (println (str "  Author: " (:prompts/author prompt))))
+             (println (str "  Size: " (:prompts/size_bytes prompt)
+                           " bytes (" (:prompts/token_count prompt) " tokens)"))
+             (println (str "  Updated: " (:prompts/updated_at prompt)))
+
+             ;; Show associated skills if any
+             (let [skills (list-prompt-skills db (:prompts/id prompt))]
+               (when (seq skills)
+                 (println)
+                 (println (bling/bling [:bold "Associated Skills:"]))
+                 (println)
+                 (doseq [skill skills]
+                   (println (format "%d. [%s] %s"
+                                    (:prompt_skills/position skill)
+                                    (:skills/category skill)
+                                    (:skills/name skill)))
+                   (when (:skills/title skill)
+                     (println (format "    %s" (:skills/title skill)))))))
+
+             (println)
+             (println (bling/bling [:bold "Content:"]))
+             (println (:prompts/content prompt)))
+           (do
+             (print-error (str "Prompt not found: " prompt-name))
+             (*exit-fn* 1))))))))
 
 (defn cmd-stats
   "Show database statistics and configuration."
@@ -1123,9 +1183,17 @@
                :required true}]
        :runs cmd-search-prompts}
 
-      {:command "list"
-       :description "List all prompts with metadata"
-       :runs cmd-list-prompts}]}
+       {:command "list"
+        :description "List all prompts with metadata"
+        :runs cmd-list-prompts}
+
+       {:command "show"
+        :description "Display prompt content with metadata and associated skills"
+        :args [{:arg "name"
+                :as "Prompt name"
+                :type :string
+                :required true}]
+        :runs cmd-show-prompt}]}
 
     {:command "plan"
      :description "Implementation plan management"

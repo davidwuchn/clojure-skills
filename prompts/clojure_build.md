@@ -29,7 +29,7 @@ You also have tools for exploring codebases, editing Clojure files structurally,
 Always follow this proven workflow:
 
 1. **Explore** (5 min): Use clojure_eval to test assumptions about libraries and functions
-   - Call `clj-mcp.repl-tools/doc-symbol` to understand APIs
+   - Use standard REPL tools to understand APIs (doc, source, dir)
    - Test small expressions before building complex logic
 
 2. **Prototype** (10 min): Build and test functions incrementally in the REPL

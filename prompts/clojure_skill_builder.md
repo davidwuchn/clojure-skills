@@ -118,8 +118,8 @@ skills/
 ├── language/              # Core Clojure concepts
 │   ├── clojure_intro.md
 │   └── clojure_repl.md
-├── clojure_mcp/          # Tool integration
-│   └── clojure_eval.md
+├── tooling/              # Development tools
+│   └── clojure_eval.md   # REPL evaluation tool
 ├── http_servers/         # HTTP server libraries
 │   ├── http_kit.md
 │   ├── ring.md
@@ -159,11 +159,10 @@ Follow this end-to-end process to create a high-quality skill:
 
 **Select the appropriate category:**
 - `language/` - Core Clojure language features
-- `clojure_mcp/` - Tool integration (REPL, eval, etc.)
 - `http_servers/` - Web server libraries
 - `libraries/<subcategory>/` - Third-party libraries (most skills go here)
 - `testing/` - Test frameworks and testing tools
-- `tooling/` - Development tools (linters, formatters, etc.)
+- `tooling/` - Development tools (linters, formatters, REPL tools, etc.)
 
 **Choose a clear filename:**
 ```bash
@@ -194,18 +193,20 @@ mkdir -p skills/libraries/your_category
 (add-lib 'metosin/malli {:mvn/version "0.16.0"})
 
 ;; 2. Discover available namespaces
-(clj-mcp.repl-tools/list-ns)
+(all-ns)
 ;; Look for namespaces starting with the library name
 
 ;; 3. Explore the main namespace
-(clj-mcp.repl-tools/list-vars 'malli.core)
-;; This shows all functions with documentation
+;; Use clojure.repl tools to explore
+(require '[clojure.repl :as repl])
+(repl/dir malli.core)
+;; This shows all public vars in the namespace
 
 ;; 4. Get detailed documentation for key functions
-(clj-mcp.repl-tools/doc-symbol 'malli.core/validate)
+(repl/doc malli.core/validate)
 
 ;; 5. View source code to understand implementation
-(clj-mcp.repl-tools/source-symbol 'malli.core/validate)
+(repl/source malli.core/validate)
 
 ;; 6. Test basic examples
 (require '[malli.core :as m])
@@ -353,7 +354,7 @@ description: Data validation library for Clojure
 
 ```
 
-**Test every example with clojure_eval!** If it doesn't work, fix it before writing more.
+**Test every example by evaluating it!** If it doesn't work, fix it before writing more.
 
 ### Step 6: Document Core Concepts
 
@@ -425,7 +426,7 @@ description: Data validation library for Clojure
 5. Advanced patterns
 6. Performance optimization
 
-**Test each workflow independently** with clojure_eval.
+**Test each workflow independently** by evaluating the code.
 
 ### Step 8: Add Decision Guides
 
@@ -507,7 +508,7 @@ description: Data validation library for Clojure
 
 ```bash
 # 1. Test all code examples
-# Copy each example to clojure_eval and verify it works
+# Evaluate each example and verify it works
 
 # 2. Test edge cases
 # Try with nil, empty collections, wrong types
@@ -743,7 +744,7 @@ Use this before publishing:
 - [ ] Has Common Issues section (3+ issues)
 
 **Code Quality:**
-- [ ] All examples tested with `clojure_eval`
+- [ ] All examples tested by evaluating code
 - [ ] Edge cases documented (nil, empty, errors)
 - [ ] Examples include expected output
 - [ ] Code follows Clojure style conventions
@@ -766,38 +767,35 @@ Use this before publishing:
 
 ### Core Tools
 
-**`clojure_eval`** - Evaluate Clojure code
+**Evaluate Clojure code** - Test examples directly
 ```clojure
-;; Test examples directly
+;; Test examples by evaluating them
 (require '[malli.core :as m])
 (m/validate [:int] 42)
 ```
 
-**`clj-mcp.repl-tools/list-ns`** - Discover namespaces
+**Standard REPL tools** - Discover and explore code
 ```clojure
-(clj-mcp.repl-tools/list-ns)
+;; Discover namespaces
+(all-ns)
 ;; See all available namespaces
-```
 
-**`clj-mcp.repl-tools/list-vars`** - List functions in namespace
-```clojure
-(clj-mcp.repl-tools/list-vars 'malli.core)
-;; See all functions with documentation
-```
+;; Explore a namespace
+(require '[clojure.repl :as repl])
+(repl/dir malli.core)
+;; See all public vars
 
-**`clj-mcp.repl-tools/doc-symbol`** - Get function documentation
-```clojure
-(clj-mcp.repl-tools/doc-symbol 'malli.core/validate)
-```
+;; Get function documentation
+(repl/doc malli.core/validate)
 
-**`clj-mcp.repl-tools/source-symbol`** - View source code
-```clojure
-(clj-mcp.repl-tools/source-symbol 'malli.core/validate)
-```
+;; View source code
+(repl/source malli.core/validate)
 
-**`clj-mcp.repl-tools/find-symbols`** - Search for symbols
-```clojure
-(clj-mcp.repl-tools/find-symbols "validate")
+;; Search for symbols
+(repl/apropos "validate")
+
+;; Search documentation
+(repl/find-doc "validate")
 ```
 
 **`clojure.repl.deps/add-lib`** - Load libraries dynamically
@@ -816,18 +814,19 @@ Use this before publishing:
 (add-lib 'group/artifact {:mvn/version "X.Y.Z"})
 
 ;; 2. Find library namespaces
-(clj-mcp.repl-tools/list-ns)
+(all-ns)
 ;; Look for namespaces matching the library name
 
 ;; 3. Explore main namespace
-(clj-mcp.repl-tools/list-vars 'library.core)
+(require '[clojure.repl :as repl])
+(repl/dir library.core)
 ;; Read through all available functions
 
 ;; 4. Check documentation for key functions
-(clj-mcp.repl-tools/doc-symbol 'library.core/main-function)
+(repl/doc library.core/main-function)
 
 ;; 5. View implementations
-(clj-mcp.repl-tools/source-symbol 'library.core/main-function)
+(repl/source library.core/main-function)
 
 ;; 6. Test basic usage
 (require '[library.core :as lib])
@@ -854,7 +853,7 @@ Use this before publishing:
 ## Best Practices for Skill Creation
 
 **DO:**
-- Test every single code example with `clojure_eval`
+- Test every single code example by evaluating it
 - Include expected output in comments
 - Document edge cases (nil, empty, errors)
 - Show realistic, practical examples
@@ -888,7 +887,7 @@ Use this before publishing:
 
 **Solution:**
 ```clojure
-;; Always test in clojure_eval FIRST
+;; Always evaluate and test FIRST
 (require '[library.core :as lib])
 ;; Did this work? If not, library might not be loaded
 
@@ -910,7 +909,7 @@ Use this before publishing:
 **Solution:**
 ```clojure
 ;; List all namespaces
-(clj-mcp.repl-tools/list-ns)
+(all-ns)
 
 ;; Look for patterns like:
 ;; - library.core (often main)
@@ -918,8 +917,9 @@ Use this before publishing:
 ;; - library.alpha (new API)
 
 ;; Check each one
-(clj-mcp.repl-tools/list-vars 'library.core)
-(clj-mcp.repl-tools/list-vars 'library.api)
+(require '[clojure.repl :as repl])
+(repl/dir library.core)
+(repl/dir library.api)
 
 ;; The one with the most important functions is usually main
 ```
@@ -1243,7 +1243,7 @@ The CLI provides access to 60+ existing skills that serve as examples and refere
 5. **Decision guides** - when to use this vs alternatives
 6. **Best practices** - DOs and DON'Ts with rationale
 7. **Common issues** - problems users WILL encounter with solutions
-8. **Validated code** - every example tested with clojure_eval
+8. **Validated code** - every example evaluated and tested
 9. **Appropriate size** - 50-600 lines based on complexity
 10. **Single file** - everything in one markdown file with frontmatter
 

@@ -10,7 +10,7 @@ result some things are messy. Contributions welcome!
 
 **Note** Note this project requires
 [clojure-mcp](https://github.com/bhauman/clojure-mcp) to be
-installed. The prompts are depdent on the clojure mcp system. We
+installed. The prompts are dependent on the clojure mcp system. We
 should clean this up.
 
 https://github.com/bhauman/clojure-mcp?tab=readme-ov-file#for-depsedn-projects

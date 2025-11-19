@@ -171,7 +171,7 @@
         ;; Add test data
         (jdbc/execute! *test-db*
                        ["INSERT INTO prompts (name, path, content, file_hash, size_bytes, token_count) 
-                       VALUES (?, ?, ?, ?, ?, ?)"
+                        VALUES (?, ?, ?, ?, ?, ?)"
                         "test-prompt" "test-prompt.md" "test prompt content" "hash" 100 25])
         ;; Simulate CLI call: clojure-skills prompt search "test"
         (let [{:keys [output]} (capture-output
@@ -185,12 +185,55 @@
         ;; Add test data
         (jdbc/execute! *test-db*
                        ["INSERT INTO prompts (name, path, content, file_hash, size_bytes, token_count) 
-                       VALUES (?, ?, ?, ?, ?, ?)"
-                        "test-prompt" "test-prompt.md" "content" "hash" 100 25])
+                        VALUES (?, ?, ?, ?, ?, ?)"
+                        "list-test-prompt" "list-test.md" "content" "hash" 200 50])
         ;; Simulate CLI call: clojure-skills prompt list
+        (let [{:keys [output]} (capture-output #(cli/cmd-list-prompts {}))]
+          (is (re-find #"list-test-prompt" output)))))))
+
+(deftest prompt-show-subcommand-test
+  (testing "prompt show subcommand displays prompt with metadata"
+    (binding [cli/*exit-fn* mock-exit]
+      (with-redefs [cli/load-config-and-db mock-load-config-and-db]
+        ;; Add test prompt data
+        (jdbc/execute! *test-db*
+                       ["INSERT INTO prompts (name, title, author, path, content, file_hash, size_bytes, token_count) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                        "show-test-prompt" "Test Prompt Title" "Test Author"
+                        "show-test.md" "# Test Prompt Content\n\nThis is test content."
+                        "hash123" 500 125])
+        ;; Simulate CLI call: clojure-skills prompt show show-test-prompt
         (let [{:keys [output]} (capture-output
-                                #(cli/cmd-list-prompts {}))]
-          (is (re-find #"test-prompt" output)))))))
+                                #(cli/cmd-show-prompt {:_arguments ["show-test-prompt"]}))]
+          (is (re-find #"show-test-prompt" output))
+          (is (re-find #"Test Prompt Title" output))
+          (is (re-find #"Test Author" output))
+          (is (re-find #"500 bytes" output))
+          (is (re-find #"125 tokens" output))
+          (is (re-find #"Test Prompt Content" output))))))
+
+  (testing "prompt show handles prompts without associated skills"
+    (binding [cli/*exit-fn* mock-exit]
+      (with-redefs [cli/load-config-and-db mock-load-config-and-db]
+        ;; Add prompt without skills
+        (jdbc/execute! *test-db*
+                       ["INSERT INTO prompts (name, path, content, file_hash, size_bytes, token_count) 
+                        VALUES (?, ?, ?, ?, ?, ?)"
+                        "no-skills-prompt" "no-skills.md" "content" "hash" 100 25])
+        ;; Simulate CLI call - should work without error even with no skills
+        (let [{:keys [output]} (capture-output
+                                #(cli/cmd-show-prompt {:_arguments ["no-skills-prompt"]}))]
+          (is (re-find #"no-skills-prompt" output))
+          ;; Should NOT have Associated Skills section if there are none
+          (is (not (re-find #"Associated Skills:" output)))))))
+
+  (testing "prompt show with non-existent prompt fails"
+    (binding [cli/*exit-fn* mock-exit]
+      (with-redefs [cli/load-config-and-db mock-load-config-and-db]
+        ;; Simulate CLI call with non-existent prompt
+        (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                              #"Exit called"
+                              (cli/cmd-show-prompt {:_arguments ["non-existent"]})))))))
 
 ;; Tests for plan subcommand hierarchy
 (deftest plan-create-subcommand-test

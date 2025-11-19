@@ -41,11 +41,11 @@ be mixed and composed to create effective coding agents.
 
 ## Essential Tools for Agents
 
-As an LLM agent working with this codebase, you have access to powerful MCP tools. Understanding and using these correctly is critical to your effectiveness.
+As an LLM agent working with this codebase, you have access to powerful tools for Clojure development. Understanding and using these correctly is critical to your effectiveness.
 
-### clojure_eval - Your Primary Development Tool
+### clj-nrepl-eval - Your Primary Development Tool
 
-**The `clojure_eval` MCP tool evaluates Clojure code in a live REPL.** This is your most important tool for development.
+**The `clj-nrepl-eval` command-line tool evaluates Clojure code via nREPL from the command line.** This is your most important tool for development.
 
 **When to use:**
 - **Before editing any file** - Always test code in the REPL first
@@ -55,39 +55,102 @@ As an LLM agent working with this codebase, you have access to powerful MCP tool
 - **Learning APIs** - Experiment with new libraries interactively
 
 **Core workflow:**
-```clojure
-;; 1. Explore - Discover what's available
-(clj-mcp.repl-tools/list-ns)                    ; What namespaces exist?
-(clj-mcp.repl-tools/list-vars 'clojure.string)  ; What functions in namespace?
-(clj-mcp.repl-tools/doc-symbol 'map)            ; How does this function work?
+```bash
+# 1. Start an nREPL server (if not already running)
+bb nrepl  # Starts on port 7889
 
-;; 2. Prototype - Test your solution
-(defn validate-email [email]
+# 2. Discover available servers
+clj-nrepl-eval --discover-ports
+
+# 3. Explore - Discover what's available
+clj-nrepl-eval -p 7889 "(all-ns)"
+clj-nrepl-eval -p 7889 "(require '[clojure.repl :as repl]) (repl/dir clojure.string)"
+clj-nrepl-eval -p 7889 "(repl/doc map)"
+
+# 4. Prototype - Test your solution
+clj-nrepl-eval -p 7889 "(defn validate-email [email]
   (and (string? email)
-       (re-matches #".+@.+\..+" email)))
+       (re-matches #\".+@.+\\..+\" email)))"
 
-;; 3. Validate - Test edge cases
-(validate-email "user@example.com")  ; => true
-(validate-email "invalid")           ; => false
-(validate-email nil)                 ; => false
+# 5. Validate - Test edge cases
+clj-nrepl-eval -p 7889 "(validate-email \"user@example.com\")"  # => "user@example.com" (truthy)
+clj-nrepl-eval -p 7889 "(validate-email \"invalid\")"           # => nil (falsy)
+clj-nrepl-eval -p 7889 "(validate-email nil)"                   # => false
 
-;; 4. Commit - Only after validation, use clojure_edit to save to file
+# 6. Commit - Only after validation, use edit tool to save to file
 
-;; 5. Reload - After file changes, reload and verify
-(require '[my.namespace :reload])
-(my.namespace/validate-email "test@example.com")
+# 7. Reload - After file changes, reload and verify
+clj-nrepl-eval -p 7889 "(require '[my.namespace :reload])"
+clj-nrepl-eval -p 7889 "(my.namespace/validate-email \"test@example.com\")"
 ```
 
-**Critical principle: NEVER edit files without testing in clojure_eval first.**
+**Critical principle: NEVER edit files without testing with clj-nrepl-eval first.**
 
-**Available REPL helper functions:**
-- `clj-mcp.repl-tools/list-ns` - List all namespaces
-- `clj-mcp.repl-tools/list-vars` - List functions in a namespace
-- `clj-mcp.repl-tools/doc-symbol` - Show function documentation
-- `clj-mcp.repl-tools/source-symbol` - View function source code
-- `clj-mcp.repl-tools/find-symbols` - Search for symbols by pattern
-- `clj-mcp.repl-tools/complete` - Autocomplete symbol names
-- `clj-mcp.repl-tools/help` - Show all available helpers
+**Available REPL helper functions (via clj-nrepl-eval):**
+- `(all-ns)` - List all namespaces
+- `(require '[clojure.repl :as repl])` then `(repl/dir namespace)` - List functions in a namespace
+- `(repl/doc symbol)` - Show function documentation (no quote needed)
+- `(repl/source symbol)` - View function source code (no quote needed)
+- `(repl/apropos "pattern")` - Search for symbols by pattern
+- `(repl/find-doc "pattern")` - Search documentation text
+
+**clj-kondo API (for linting and static analysis):**
+
+The project includes `clj-kondo` for linting and static analysis. Use the API from `clj-kondo.core`:
+- [clj-kondo API Documentation](https://cljdoc.org/d/clj-kondo/clj-kondo/CURRENT/api/clj-kondo.core)
+
+**Available functions:**
+
+``` clojure
+;; Require the namespace
+(require '[clj-kondo.core :as kondo])
+
+;; Lint files or directories
+(kondo/run! {:lint ["src"]})
+;; Returns: {:findings [...] :summary {:error N :warning N :info N} :config {...}}
+
+;; Lint with custom config
+(kondo/run! {:lint ["src"] :config {:linters {:unresolved-symbol {:level :off}}}})
+
+;; Print findings to stdout
+(-> (kondo/run! {:lint ["src"]}) kondo/print!)
+
+;; Get summary statistics
+(-> (kondo/run! {:lint ["src"]}) :summary)
+;; Returns: {:error 0 :warning 5 :info 0 :type :summary :duration 123}
+
+;; Lint stdin with language specified
+(kondo/run! {:lint ["-"] :lang :clj :filename "stdin.clj"})
+
+;; Resolve configuration for a directory
+(kondo/resolve-config ".")
+;; Returns merged config from .clj-kondo/config.edn, home dir, and defaults
+
+;; Merge multiple configs
+(kondo/merge-configs {:linters {:unresolved-symbol {:level :warning}}}
+                     {:linters {:unused-binding {:level :error}}})
+
+;; Get config hash (useful for cache invalidation)
+(kondo/config-hash config)
+```
+
+**Use cases:**
+- Lint code programmatically before running tests
+- Integrate linting into custom build tools
+- Get structured analysis data for editor integration
+- Validate code in REPL during development
+
+**Example REPL workflow:**
+``` bash
+# Lint current namespace via nREPL
+clj-nrepl-eval -p 7889 "(require '[clj-kondo.core :as kondo])"
+clj-nrepl-eval -p 7889 "(-> (kondo/run! {:lint [\"src/my_namespace.clj\"]}) kondo/print!)"
+
+# Get just the summary
+clj-nrepl-eval -p 7889 "(-> (kondo/run! {:lint [\"src\"]}) :summary)"
+```
+
+**Note:** For command-line linting, use `bb lint` which wraps clj-kondo. The API is useful for programmatic linting within Clojure code.
 
 ### clojure-skills CLI - Your Knowledge Database
 
@@ -134,32 +197,30 @@ clojure-skills skill search "HTTP server"
 clojure-skills skill show "http_kit"
 
 # 3. Use knowledge in your code
-# (Now you know http-kit patterns to test in clojure_eval)
+# (Now you know http-kit patterns to test with clj-nrepl-eval)
 ```
 
-### Other MCP Tools
+### Other Tools Available
 
 **File operations:**
 
-- `clojure-mcp_read_file` - Read and explore Clojure files (with collapsed view)
-- `clojure_edit` - Surgically edit top-level forms in Clojure files
-- `clojure_edit_replace_sexp` - Replace specific expressions
-- `clojure-mcp_file_write` - Write entire files (for new files or major rewrites)
-
-**Code analysis:**
-
-- `clojure-lsp API` - Static analysis, find references, clean namespaces, rename symbols
+- `read` - Read and explore files
+- `edit` - Edit files (use standard file editing tools)
+- `write` - Write entire files (for new files or major rewrites)
+- `list` - List directory contents
+- `glob` - Find files by pattern
+- `grep` - Search file contents
 
 **Shell operations:**
 
-- `clojure-mcp_bash` - Execute shell commands
+- `bash` - Execute shell commands (use for clj-nrepl-eval and other CLI tools)
 
 **Workflow pattern:**
 
 1. Use `clojure-skills search` to find relevant knowledge
-2. Use `clojure_eval` to prototype and test code
-3. Use `clojure_edit` to commit working code to files
-4. Use `clojure_eval` again to reload and verify changes
+2. Use `clj-nrepl-eval` (via bash) to prototype and test code
+3. Use standard file editing tools to commit working code to files
+4. Use `clj-nrepl-eval` again to reload and verify changes
 
 ---
 
@@ -239,6 +300,7 @@ clojure-skills/
 | Tool | Purpose | Config File |
 |------|---------|-------------|
 | **clj-kondo** | Linter | `.clj-kondo/` |
+| **clojure-lsp** | Language server (static analysis, refactoring) | - |
 | **cljstyle** | Code formatter | - |
 | **typos** | Spell checker | `_typos.toml` |
 | **nRepl** | REPL server | `:nrepl` alias in `deps.edn` |
@@ -422,36 +484,26 @@ bb nrepl
 
 #### REPL-Based Testing (Primary Method)
 
-For test-driven development, use clojure_eval with Kaocha:
-
-```clojure
-;; Using clojure_eval tool (for agents)
-
-;; 1. Load dev namespace
-(require '[dev :refer :all])
-
-;; 2. Run all tests
-(k/run-all)
-
-;; 3. Run specific test namespace
-(k/run 'clojure-skills.db.migrate-test)
-
-;; 4. Run specific test
-(k/run 'clojure-skills.db.migrate-test/test-migrate-db)
-
-;; 5. Reload code after changes
-(refresh)
-```
-
-**For interactive REPL (humans):**
+For test-driven development, use clj-nrepl-eval with Kaocha:
 
 ```bash
-# 1. Start nREPL server
+# 1. Start nREPL server (if not running)
 bb nrepl
 
-# 2. Connect from your editor (CIDER, Calva, Cursive)
+# 2. Load dev namespace
+clj-nrepl-eval -p 7889 "(require '[dev :refer :all])"
 
-# 3. Use the same commands as above in your connected REPL
+# 3. Run all tests
+clj-nrepl-eval -p 7889 "(k/run-all)"
+
+# 4. Run specific test namespace
+clj-nrepl-eval -p 7889 "(k/run 'clojure-skills.db.migrate-test)"
+
+# 5. Run specific test
+clj-nrepl-eval -p 7889 "(k/run 'clojure-skills.db.migrate-test/test-migrate-db)"
+
+# 6. Reload code after changes
+clj-nrepl-eval -p 7889 "(refresh)"
 ```
 
 **Available functions in `dev` namespace:**
@@ -1640,49 +1692,49 @@ bb setup-python           # Install Python dependencies
 
 ### When Asked to Write or Modify Code
 
-**Always follow the clojure_eval-first workflow:**
+**Always follow the clj-nrepl-eval-first workflow:**
 
-1. **Explore** - Use clojure_eval to understand the problem space
-   ```clojure
-   ;; What namespaces are available?
-   (clj-mcp.repl-tools/list-ns)
+1. **Explore** - Use clj-nrepl-eval to understand the problem space
+   ```bash
+   # What namespaces are available?
+   clj-nrepl-eval -p 7889 "(all-ns)"
 
-   ;; What functions exist in the relevant namespace?
-   (clj-mcp.repl-tools/list-vars 'my.namespace)
+   # What functions exist in the relevant namespace?
+   clj-nrepl-eval -p 7889 "(require '[clojure.repl :as repl]) (repl/dir my.namespace)"
 
-   ;; How does this function work?
-   (clj-mcp.repl-tools/doc-symbol 'my.namespace/function-name)
+   # How does this function work?
+   clj-nrepl-eval -p 7889 "(repl/doc my.namespace/function-name)"
    ```
 
-2. **Prototype** - Write and test code in clojure_eval
-   ```clojure
-   ;; Test your solution with real data
-   (defn my-function [x]
-     (process x))
+2. **Prototype** - Write and test code with clj-nrepl-eval
+   ```bash
+   # Test your solution with real data
+   clj-nrepl-eval -p 7889 "(defn my-function [x]
+     (process x))"
 
-   (my-function test-data)  ; Does it work?
+   clj-nrepl-eval -p 7889 "(my-function test-data)"  # Does it work?
    ```
 
-3. **Validate** - Test edge cases in clojure_eval
-   ```clojure
-   (my-function nil)     ; Handles nil?
-   (my-function [])      ; Handles empty?
-   (my-function "bad")   ; Handles invalid input?
+3. **Validate** - Test edge cases with clj-nrepl-eval
+   ```bash
+   clj-nrepl-eval -p 7889 "(my-function nil)"     # Handles nil?
+   clj-nrepl-eval -p 7889 "(my-function [])"      # Handles empty?
+   clj-nrepl-eval -p 7889 "(my-function \"bad\")"   # Handles invalid input?
    ```
 
-4. **Commit** - Only after validation, use clojure_edit
-   ```clojure
-   ;; Now save the validated function to the file
-   ;; Use clojure_edit tool to add/replace the function
+4. **Commit** - Only after validation, use edit tool
+   ```bash
+   # Now save the validated function to the file
+   # Use standard edit tool to add/replace the function
    ```
 
-5. **Verify** - Reload and test in clojure_eval
-   ```clojure
-   (require '[my.namespace :reload])
-   (my.namespace/my-function test-data)  ; Still works?
+5. **Verify** - Reload and test with clj-nrepl-eval
+   ```bash
+   clj-nrepl-eval -p 7889 "(require '[my.namespace :reload])"
+   clj-nrepl-eval -p 7889 "(my.namespace/my-function test-data)"  # Still works?
    ```
 
-**NEVER skip step 1-3. Code that hasn't been tested in clojure_eval should not be written to files.**
+**NEVER skip step 1-3. Code that hasn't been tested with clj-nrepl-eval should not be written to files.**
 
 ### When You Need Library Knowledge
 
@@ -1697,9 +1749,9 @@ bb setup-python           # Install Python dependencies
    clojure-skills show-skill "skill-name" | jq -r '.content'
    ```
 
-3. **Apply knowledge in clojure_eval:**
+3. **Apply knowledge with clj-nrepl-eval:**
    - Read the skill examples
-   - Test them in clojure_eval
+   - Test them with clj-nrepl-eval
    - Adapt to your specific use case
    - Validate before committing to files
 
@@ -1784,7 +1836,7 @@ This helps both you and humans understand progress across sessions.
 3. Determine the appropriate category (`language/`, `clojure_mcp/`, etc.)
 4. Create a focused markdown file with YAML frontmatter
 5. Include practical examples
-6. **Test all code examples with clojure_eval**
+6. **Test all code examples with clj-nrepl-eval**
 7. Check spelling with `bb typos`
 8. Verify skill appears in `bb list-skills` output
 9. Sync database: `clojure-skills sync`
@@ -1835,53 +1887,47 @@ This helps both you and humans understand progress across sessions.
 
 ### When Debugging
 
-**Primary approach - Use clojure_eval:**
+**Primary approach - Use clj-nrepl-eval:**
 
 1. **Reproduce the issue:**
-   ```clojure
-   ;; Load the problematic code
-   (require '[problem.namespace :reload])
+   ```bash
+   # Load the problematic code
+   clj-nrepl-eval -p 7889 "(require '[problem.namespace :reload])"
 
-   ;; Try to reproduce
-   (problem.namespace/broken-function test-data)
+   # Try to reproduce
+   clj-nrepl-eval -p 7889 "(problem.namespace/broken-function test-data)"
    ```
 
 2. **Inspect intermediate values:**
-   ```clojure
-   ;; Break down the function to see where it fails
-   (def intermediate (step-1 input))
-   (clojure.pprint/pprint intermediate)
+   ```bash
+   # Break down the function to see where it fails
+   clj-nrepl-eval -p 7889 "(def intermediate (step-1 input))"
+   clj-nrepl-eval -p 7889 "(clojure.pprint/pprint intermediate)"
 
-   (step-2 intermediate)  ; Where does it break?
+   clj-nrepl-eval -p 7889 "(step-2 intermediate)"  # Where does it break?
    ```
 
 3. **Test hypotheses:**
-   ```clojure
-   ;; Hypothesis: It fails on nil inputs
-   (broken-function nil)  ; Does this fail?
+   ```bash
+   # Hypothesis: It fails on nil inputs
+   clj-nrepl-eval -p 7889 "(broken-function nil)"  # Does this fail?
 
-   ;; Hypothesis: Type mismatch
-   (type result)  ; What type is this actually?
+   # Hypothesis: Type mismatch
+   clj-nrepl-eval -p 7889 "(type result)"  # What type is this actually?
    ```
 
 4. **Fix and validate:**
-   ```clojure
-   ;; Test the fix
-   (defn fixed-function [x]
+   ```bash
+   # Test the fix
+   clj-nrepl-eval -p 7889 "(defn fixed-function [x]
      (when x  ; Add nil check
-       (process x)))
+       (process x)))"
 
-   (fixed-function nil)      ; Works now?
-   (fixed-function test-data) ; Still works for valid input?
+   clj-nrepl-eval -p 7889 "(fixed-function nil)"      # Works now?
+   clj-nrepl-eval -p 7889 "(fixed-function test-data)" # Still works for valid input?
    ```
 
-5. **Commit fix with clojure_edit only after validation**
-
-**Alternative - nREPL for editor integration:**
-- Use `bb nrepl` to start a REPL on port 7889
-- Connect from your editor (CIDER, Calva, Cursive)
-- Useful for complex debugging sessions
-- But clojure_eval is usually sufficient
+5. **Commit fix with edit tool only after validation**
 
 ---
 
@@ -1890,7 +1936,7 @@ This helps both you and humans understand progress across sessions.
 This repository is designed for **modular, composable prompt engineering** for Clojure development. Skills are atomic units of knowledge, prompts combine them for specific purposes, and the tooling supports rapid, test-driven development.
 
 **Key Principles:**
-- **REPL-First Development**: Always test with clojure_eval before editing files
+- **REPL-First Development**: Always test with clj-nrepl-eval before editing files
 - **Modularity**: Skills should be self-contained and reusable
 - **Composition**: Prompts combine skills for specific goals
 - **Testability**: Code should be validated in REPL, then tested with Kaocha
@@ -1899,13 +1945,14 @@ This repository is designed for **modular, composable prompt engineering** for C
 - **Searchability**: Use clojure-skills CLI with hierarchical subcommands to find relevant knowledge
 - **Task Tracking**: Use plans and tasks for complex implementations
 
-**Essential MCP Tools:**
-- **clojure_eval** - Your primary development tool (test everything here first!)
+**Essential Tools:**
+- **clj-nrepl-eval** - Your primary development tool (test everything here first!)
 - **clojure-skills CLI** - Search and access 70+ skills with hierarchical subcommands
-- **clojure_edit** - Commit validated code to files
-- **clojure-mcp_read_file** - Explore codebases
+- **Standard editing tools** - Edit files after validating code
+- **bash** - Execute clj-nrepl-eval and other CLI commands
 
 **Essential Commands:**
+- `clj-nrepl-eval -p 7889 "<code>"` - Evaluate Clojure code via nREPL
 - `clojure-skills skill search <topic>` - Find relevant skills
 - `clojure-skills skill show <name>` - View detailed skill content
 - `clojure-skills plan create` - Start tracking complex implementations
@@ -1918,16 +1965,16 @@ This repository is designed for **modular, composable prompt engineering** for C
 
 **Core Workflow:**
 1. **Search** - Find relevant skills with `clojure-skills search`
-2. **Explore** - Understand the problem with clojure_eval
-3. **Prototype** - Write and test code in clojure_eval
-4. **Validate** - Test edge cases in clojure_eval
-5. **Commit** - Use clojure_edit to save validated code
-6. **Verify** - Reload and test again in clojure_eval
+2. **Explore** - Understand the problem with clj-nrepl-eval
+3. **Prototype** - Write and test code with clj-nrepl-eval
+4. **Validate** - Test edge cases with clj-nrepl-eval
+5. **Commit** - Use edit tool to save validated code
+6. **Verify** - Reload and test again with clj-nrepl-eval
 
 **When in doubt:**
-- **Before editing any file**: Test it in clojure_eval first
+- **Before editing any file**: Test it with clj-nrepl-eval first
 - **Need library knowledge**: Use `clojure-skills skill search`
 - **Complex feature**: Create an implementation plan and associate relevant skills
 - **Starting work on a plan**: Review associated skills with `plan skill list`
-- **Debugging**: Use clojure_eval to test hypotheses
+- **Debugging**: Use clj-nrepl-eval to test hypotheses
 - **Before committing**: Run `bb ci` to ensure quality
