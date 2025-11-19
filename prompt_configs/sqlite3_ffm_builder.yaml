@@ -1,4 +1,6 @@
+name: sqlite3_ffm_builder
 title: SQLite3 FFM Library Builder
+description: Expert agent for building low-level Clojure wrappers around SQLite3's C API using Java's Foreign Function and Memory API
 author: Ivan Willig
 date: 2025-01-10
 skills:

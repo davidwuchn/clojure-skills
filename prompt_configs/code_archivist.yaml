@@ -1,4 +1,6 @@
+name: code_archivist
 title: Code Archivist
+description: Expert code documentation agent specialized in analyzing and documenting Clojure and Datomic codebases.
 author: AI Assistant
 date: 2025-11-18
 skills:

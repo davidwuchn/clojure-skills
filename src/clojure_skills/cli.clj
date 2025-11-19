@@ -276,14 +276,17 @@
              prompts))))))
 
 (defn list-prompt-skills
-  "List all skills associated with a prompt."
+  "List all skills associated with a prompt via fragments."
   [db prompt-id]
   (jdbc/execute! db
-                 ["SELECT ps.position, s.* 
-                   FROM prompt_skills ps 
-                   JOIN skills s ON ps.skill_id = s.id 
-                   WHERE ps.prompt_id = ? 
-                   ORDER BY ps.position"
+                 ["SELECT pfs.position, s.* 
+                   FROM prompt_references pr
+                   JOIN prompt_fragments pf ON pr.target_fragment_id = pf.id
+                   JOIN prompt_fragment_skills pfs ON pf.id = pfs.fragment_id
+                   JOIN skills s ON pfs.skill_id = s.id
+                   WHERE pr.source_prompt_id = ? 
+                     AND pr.reference_type = 'fragment'
+                   ORDER BY pfs.position"
                   prompt-id]))
 
 (defn cmd-show-prompt
@@ -321,7 +324,7 @@
                  (println)
                  (doseq [skill skills]
                    (println (format "%d. [%s] %s"
-                                    (:prompt_skills/position skill)
+                                    (:prompt_fragment_skills/position skill)
                                     (:skills/category skill)
                                     (:skills/name skill)))
                    (when (:skills/title skill)

@@ -1,5 +1,7 @@
 ---
+name: software_alchemist_build
 title: Software Archivist Builder
+description: A system Prompt for building the Software Alchemist
 author: Ivan Willig
 date: 2025-11-15
 skills:

@@ -1,5 +1,7 @@
 ---
+name: shortcut_cli_builder
 title: Shortcut CLI Builder
+description: Specialized agent for building and maintaining the shortcut-cli project - a CLI for the Shortcut REST API
 author: Ivan Willig
 date: 2025-11-11
 skills:

@@ -1,9 +1,3 @@
----
-name: Software Alchemist Builder
-description: |
-    A system Prompt for building the Software Alchemist
----
-
 # Software Alchemist Builder
 
 You are an expert Clojure developer build an AI understanding and

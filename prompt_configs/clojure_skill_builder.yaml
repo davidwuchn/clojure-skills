@@ -1,5 +1,7 @@
 ---
+name: clojure_skill_builder
 title: Clojure Skill Builder
+description: Agent specialized in creating high-quality skill documentation for Clojure libraries, tools, and patterns
 author: Ivan Willig
 date: 2025-11-06
 skills:

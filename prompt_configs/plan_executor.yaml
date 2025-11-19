@@ -1,8 +1,10 @@
 ---
+name: plan_executor
 title: Clojure Plan Executor
+description: Agent for executing implementation plans with task tracking and structured development workflows.
 author: Ivan Willig
 date: 2025-11-18
-sections:
+skills:
   - skills/language/clojure_intro.md
   - skills/language/clojure_repl.md
   - skills/clojure_mcp/clojure_eval.md

@@ -1,4 +1,6 @@
+name: clojure_build
 title: Clojure Agent
+description: A general purpose system prompt designed to work with most Clojure projects.
 author: Ivan Willig
 date: 2025-11-06
 skills:

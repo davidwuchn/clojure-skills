@@ -4,7 +4,7 @@
    [clj-yaml.core :as yaml]
    [clojure-skills.config :as config]
    [clojure-skills.db.core]
-   [clojure-skills.db.prompt-skills :as prompt-skills]
+   [clojure-skills.db.prompt-fragments :as fragments]
    [clojure-skills.logging :as log]
    [clojure.java.io :as io]
    [clojure.string :as str]
@@ -126,38 +126,20 @@
      :size_bytes size-bytes
      :token_count token-count}))
 
-(defn parse-prompt-file
-  "Parse a prompt markdown file and extract metadata."
-  [path]
-  (let [content (slurp path)
-        [frontmatter _content-without-frontmatter] (extract-frontmatter content)
-        filename (last (str/split path #"/"))
-        name (str/replace filename #"\.md$" "")
-        file-hash (compute-hash content)
-        size-bytes (.length (io/file path))
-        token-count (estimate-tokens content)]
-    {:path path
-     :name name
-     :title (get frontmatter "title")
-     :author (get frontmatter "author")
-     :description (get frontmatter "description")
-     :sections (get frontmatter "sections" [])
-     :content content
-     :file_hash file-hash ;; Using snake_case for SQL compatibility
-     :size_bytes size-bytes
-     :token_count token-count}))
-
 (defn parse-prompt-config-file
   "Parse a prompt YAML configuration file and extract skill associations."
   [path]
   (let [content (slurp path)
         config (yaml/parse-string content)
         filename (last (str/split path #"/"))
-        name (str/replace filename #"\.yaml$" "")]
+        file-name (str/replace filename #"\.yaml$" "")]
     {:path path
-     :name name
+     :file-name file-name
+     :name (get config :name file-name)  ;; Use name from config, fallback to filename
      :title (get config :title)
+     :description (get config :description)
      :author (get config :author)
+     :date (get config :date)
      :skills (get config :skills [])
      :content content}))
 
@@ -166,10 +148,10 @@
   [db path]
   (jdbc/execute-one! db ["SELECT * FROM skills WHERE path = ?" path]))
 
-(defn get-prompt-by-path
-  "Get prompt from database by path."
-  [db path]
-  (jdbc/execute-one! db ["SELECT * FROM prompts WHERE path = ?" path]))
+(defn get-prompt-by-name
+  "Get prompt from database by name."
+  [db name]
+  (jdbc/execute-one! db ["SELECT * FROM prompts WHERE name = ?" name]))
 
 (defn upsert-skill
   "Insert or update skill in database."
@@ -184,15 +166,16 @@
       (sql/insert! db :skills skill))))
 
 (defn upsert-prompt
-  "Insert or update prompt in database."
+  "Insert or update prompt in database.
+   Uses name (not path) as the unique identifier due to UNIQUE constraint."
   [db prompt]
-  (let [existing (get-prompt-by-path db (:path prompt))]
+  (let [existing (get-prompt-by-name db (:name prompt))]
     (if existing
-      ;; Update
+      ;; Update existing prompt (matched by name)
       (sql/update! db :prompts
-                   (dissoc prompt :path :sections)
-                   {:path (:path prompt)})
-      ;; Insert
+                   (dissoc prompt :name :sections)
+                   {:name (:name prompt)})
+      ;; Insert new prompt
       (sql/insert! db :prompts (dissoc prompt :sections)))))
 
 (defn sync-skill
@@ -214,24 +197,49 @@
       (log/log-error "Error syncing skill" :path skill-path :error (.getMessage e))
       (println "  ERROR syncing" skill-path ":" (.getMessage e)))))
 
-(defn sync-prompt
-  "Sync a single prompt file to database."
-  [db prompt-path]
+(defn find-prompt-content-file
+  "Find the corresponding .md file for a prompt name."
+  [prompt-name]
+  (let [project-root (System/getProperty "user.dir")]
+    (str project-root "/prompts/" prompt-name ".md")))
+
+(defn sync-prompt-from-config
+  "Sync a prompt using config file as metadata source.
+   This is the NEW approach where metadata comes from .yaml and content from .md"
+  [db config-path]
   (try
-    (let [prompt-data (parse-prompt-file prompt-path)
-          existing (get-prompt-by-path db prompt-path)]
+    (let [config-data (parse-prompt-config-file config-path)
+          prompt-name (:name config-data)
+          content-path (find-prompt-content-file prompt-name)
+          content (slurp content-path)
+          ;; Hash both config and content to detect changes in either
+          combined-content (str (:content config-data) "\n---\n" content)
+          file-hash (compute-hash combined-content)
+          size-bytes (+ (.length (io/file config-path))
+                        (.length (io/file content-path)))
+          token-count (estimate-tokens content)
+          prompt-data {:path content-path  ;; Store path to .md file for compatibility
+                       :name prompt-name
+                       :title (:title config-data)
+                       :author (:author config-data)
+                       :description (:description config-data)
+                       :content content
+                       :file_hash file-hash
+                       :size_bytes size-bytes
+                       :token_count token-count}
+          existing (get-prompt-by-name db prompt-name)]
       (if (and existing
-               (= (:prompts/file_hash existing) (:file_hash prompt-data)))
+               (= (:prompts/file_hash existing) file-hash))
         (do
-          (log/log-info "Skipped prompt sync (unchanged)" :path prompt-path)
-          (println "  Skipped (unchanged):" prompt-path))
+          (log/log-info "Skipped prompt sync (unchanged)" :name prompt-name)
+          (println "  Skipped (unchanged):" prompt-name))
         (do
           (upsert-prompt db prompt-data)
-          (log/log-info "Synced prompt" :path prompt-path)
-          (println "  Synced:" prompt-path))))
+          (log/log-info "Synced prompt from config" :name prompt-name)
+          (println "  Synced:" prompt-name))))
     (catch Exception e
-      (log/log-error "Error syncing prompt" :path prompt-path :error (.getMessage e))
-      (println "  ERROR syncing" prompt-path ":" (.getMessage e)))))
+      (log/log-error "Error syncing prompt from config" :path config-path :error (.getMessage e))
+      (println "  ERROR syncing" config-path ":" (.getMessage e)))))
 
 (defn sync-all-skills
   "Sync all skills from skills directory to database."
@@ -248,26 +256,33 @@
     (println "Skills sync complete.")))
 
 (defn sync-all-prompts
-  "Sync all prompts from prompts directory to database."
+  "Sync all prompts from prompt_configs directory to database.
+   NEW APPROACH: Reads metadata from .yaml configs and content from .md files."
   [db config]
   (let [project-root (config/expand-path (or (get-in config [:project :root])
                                              (System/getProperty "user.dir")))
-        prompts-dir (str project-root "/" (get-in config [:project :prompts-dir]))
-        prompt-files (scan-prompt-files prompts-dir)]
-    (log/log-info "Starting prompts sync" :count (count prompt-files) :directory prompts-dir)
-    (println (format "Syncing %d prompts from %s..." (count prompt-files) prompts-dir))
-    (doseq [prompt-file prompt-files]
-      (sync-prompt db prompt-file))
-    (log/log-success "Prompts sync complete" :count (count prompt-files))
+        configs-dir (str project-root "/prompt_configs")
+        config-files (scan-prompt-config-files configs-dir)]
+    (log/log-info "Starting prompts sync from configs" :count (count config-files) :directory configs-dir)
+    (println (format "Syncing %d prompts from %s..." (count config-files) configs-dir))
+    (doseq [config-file config-files]
+      (sync-prompt-from-config db config-file))
+    (log/log-success "Prompts sync complete" :count (count config-files))
     (println "Prompts sync complete.")))
 
-(defn get-prompt-by-name
-  "Get prompt from database by name."
-  [db name]
-  (jdbc/execute-one! db ["SELECT * FROM prompts WHERE name = ?" name]))
+(defn resolve-skill-path
+  "Resolve a relative skill path from YAML config to absolute path."
+  [relative-path]
+  (let [project-root (System/getProperty "user.dir")]
+    (str project-root "/" relative-path)))
+
+(defn get-skill-by-absolute-path
+  "Get skill from database by absolute path."
+  [db absolute-path]
+  (jdbc/execute-one! db ["SELECT * FROM skills WHERE path = ?" absolute-path]))
 
 (defn sync-prompt-skills-for-config
-  "Sync prompt skills from a YAML configuration file to database."
+  "Sync prompt skills from a YAML configuration file to database using fragments model."
   [db config-path]
   (try
     (let [config-data (parse-prompt-config-file config-path)
@@ -275,48 +290,74 @@
           skill-paths (:skills config-data)
           prompt-record (get-prompt-by-name db prompt-name)]
       (if prompt-record
-        (do
-          ;; Remove existing skill associations
-          (prompt-skills/dissociate-all-skills-from-prompt db (:prompts/id prompt-record))
-          
-          ;; Add new skill associations
+        ;; Create or get fragment for this prompt
+        (let [fragment-name (str prompt-name "-embedded")
+              fragment-title (str (or (:title config-data) prompt-name) " Embedded Skills")
+              existing-fragment (fragments/get-prompt-fragment-by-name db fragment-name)
+              fragment (if existing-fragment
+                         existing-fragment
+                         (fragments/create-prompt-fragment
+                          db
+                          {:name fragment-name
+                           :title fragment-title
+                           :description (str "Embedded skills for " prompt-name " prompt")}))]
+
+          ;; Clear existing fragment-skill associations
+          (jdbc/execute! db ["DELETE FROM prompt_fragment_skills WHERE fragment_id = ?"
+                             (:prompt_fragments/id fragment)])
+
+          ;; Add skills to fragment
           (doseq [[idx skill-path] (map vector (range) skill-paths)]
-            (let [skill-record (prompt-skills/get-skill-by-path db skill-path)]
+            (let [absolute-path (resolve-skill-path skill-path)
+                  skill-record (get-skill-by-absolute-path db absolute-path)]
               (if skill-record
                 (do
-                  (prompt-skills/associate-skill-with-prompt 
-                   db {:prompt-id (:prompts/id prompt-record)
-                       :skill-id (:skills/id skill-record)
-                       :position idx})
-                  (println (format "  Associated skill: %s -> %s (position %d)" 
-                                 prompt-name (:skills/name skill-record) idx)))
+                  (fragments/associate-skill-with-fragment
+                   db
+                   {:fragment_id (:prompt_fragments/id fragment)
+                    :skill_id (:skills/id skill-record)
+                    :position idx})
+                  (println (format "  Associated skill: %s -> %s (position %d)"
+                                   prompt-name (:skills/name skill-record) idx)))
                 (do
                   (log/log-warning "Skill not found in database" :path skill-path :prompt prompt-name)
                   (println (format "  WARNING: Skill not found: %s" skill-path))))))
-          
-          (log/log-info "Synced prompt skills" :prompt prompt-name :skills-count (count skill-paths))
-          (println (format "  Synced skills for prompt: %s (%d skills)" prompt-name (count skill-paths))))
+
+          ;; Clear existing prompt references
+          (jdbc/execute! db ["DELETE FROM prompt_references WHERE source_prompt_id = ? AND reference_type = 'fragment'"
+                             (:prompts/id prompt-record)])
+
+          ;; Add prompt reference to fragment
+          (fragments/add-prompt-reference
+           db
+           {:source_prompt_id (:prompts/id prompt-record)
+            :target_fragment_id (:prompt_fragments/id fragment)
+            :reference_type "fragment"
+            :position 1})
+
+          (log/log-info "Synced prompt fragment" :prompt prompt-name :skills-count (count skill-paths))
+          (println (format "  Synced fragment for prompt: %s (%d skills)" prompt-name (count skill-paths))))
         (do
           (log/log-warning "Prompt not found in database" :name prompt-name :config config-path)
           (println (format "  WARNING: Prompt '%s' not found in database" prompt-name)))))
     (catch Exception e
-      (log/log-error "Error syncing prompt skills" :path config-path :error (.getMessage e))
-      (println (format "  ERROR syncing prompt skills from %s: %s" config-path (.getMessage e))))))
+      (log/log-error "Error syncing prompt fragment" :path config-path :error (.getMessage e))
+      (println (format "  ERROR syncing prompt fragment from %s: %s" config-path (.getMessage e))))))
 
 (defn sync-all-prompt-skills
-  "Sync all prompt skills from prompt_configs directory to database."
+  "Sync all prompt fragments from prompt_configs directory to database."
   [db config]
   (let [project-root (config/expand-path (or (get-in config [:project :root])
                                              (System/getProperty "user.dir")))
         configs-dir (str project-root "/prompt_configs")
         config-files (scan-prompt-config-files configs-dir)]
-    (log/log-info "Starting prompt skills sync" :count (count config-files) :directory configs-dir)
-    (println (format "Syncing prompt skills from %d config files in %s..." (count config-files) configs-dir))
+    (log/log-info "Starting prompt fragments sync" :count (count config-files) :directory configs-dir)
+    (println (format "Syncing prompt fragments from %d config files in %s..." (count config-files) configs-dir))
     (when (seq config-files)
       (doseq [config-file config-files]
         (sync-prompt-skills-for-config db config-file)))
-    (log/log-success "Prompt skills sync complete" :count (count config-files))
-    (println "Prompt skills sync complete.")))
+    (log/log-success "Prompt fragments sync complete" :count (count config-files))
+    (println "Prompt fragments sync complete.")))
 
 (defn sync-all
   "Sync all skills, prompts, and prompt skills to database."

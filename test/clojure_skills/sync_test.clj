@@ -95,20 +95,6 @@
           (is (pos? (:size_bytes result)))
           (is (pos? (:token_count result))))))))
 
-(deftest test-parse-prompt-file
-  (testing "parse-prompt-file extracts metadata from prompt file"
-    (let [test-file "prompts/clojure_build.md"]
-      (when (.exists (io/file test-file))
-        (let [result (sync/parse-prompt-file test-file)]
-          (is (map? result))
-          (is (= test-file (:path result)))
-          (is (string? (:name result)))
-          (is (string? (:content result)))
-          (is (string? (:file_hash result)))
-          (is (pos? (:size_bytes result)))
-          (is (pos? (:token_count result)))
-          (is (coll? (:sections result))))))))
-
 (deftest test-sync-skill-detects-changes
   (testing "sync-skill correctly detects when file has changed"
     ;; Create a temporary test database

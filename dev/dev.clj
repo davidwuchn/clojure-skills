@@ -1,13 +1,12 @@
 (ns dev
   (:require
    [clj-kondo.core :as clj-kondo]
-   [clj-reload.core :as reload]
+   [clojure.string :as str]
+   [clojure.tools.namespace.repl :as repl]
    [kaocha.repl :as k]))
 
-(defn refresh
-  "Reload all changed namespaces."
-  []
-  (reload/reload))
+(defn refresh []
+  (repl/refresh))
 
 (defn lint
   "Lint the entire project (src and test directories)."
@@ -35,8 +34,8 @@
   Example: (lint-ns 'clojure-skills.main)"
   [ns-sym]
   (let [path (-> (str ns-sym)
-                 (clojure.string/replace "-" "_")
-                 (clojure.string/replace "." "/"))]
+                 (str/replace "-" "_")
+                 (str/replace "." "/"))]
     (-> (clj-kondo/run! {:lint [(str "src/" path ".clj")
                                 (str "test/" path "_test.clj")]})
         clj-kondo/print!)))
