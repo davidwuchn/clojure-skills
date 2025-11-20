@@ -12,6 +12,7 @@
    [clojure-skills.db.plan-results :as plan-results]
    [clojure-skills.db.plan-skills :as plan-skills]
    [clojure-skills.db.plans :as plans]
+   [clojure-skills.db.prompt-render :as pr]
    [clojure-skills.db.tasks :as tasks]
    [clojure-skills.output :as output]
    [clojure-skills.search :as search]
@@ -135,39 +136,39 @@
      (fn []
        (let [[_config db] (load-config-and-db)
              results (cond
-                         (= type "skills")
-                         {:skills (search/search-skills db query
-                                                        :max-results max-results
-                                                        :category category)
-                          :prompts []}
+                       (= type "skills")
+                       {:skills (search/search-skills db query
+                                                      :max-results max-results
+                                                      :category category)
+                        :prompts []}
 
-                         (= type "prompts")
-                         {:skills []
-                          :prompts (search/search-prompts db query
-                                                          :max-results max-results)}
+                       (= type "prompts")
+                       {:skills []
+                        :prompts (search/search-prompts db query
+                                                        :max-results max-results)}
 
-                         :else
-                         (search/search-all db query
-                                            :max-results max-results
-                                            :category category))]
-           (output/output-data
-            {:type :search-results
-             :query query
-             :category category
-             :search-type type
-             :skills {:count (count (:skills results))
-                      :results (map (fn [skill]
-                                      {:name (:skills/name skill)
-                                       :category (:skills/category skill)
-                                       :size-bytes (or (:skills/size_bytes skill) 0)
-                                       :token-count (or (:skills/token_count skill) 0)})
-                                    (:skills results))}
-             :prompts {:count (count (:prompts results))
-                       :results (map (fn [prompt]
-                                       {:name (:prompts/name prompt)
-                                        :size-bytes (or (:prompts/size_bytes prompt) 0)
-                                        :token-count (or (:prompts/token_count prompt) 0)})
-                                     (:prompts results))}}))))))
+                       :else
+                       (search/search-all db query
+                                          :max-results max-results
+                                          :category category))]
+         (output/output-data
+          {:type :search-results
+           :query query
+           :category category
+           :search-type type
+           :skills {:count (count (:skills results))
+                    :results (map (fn [skill]
+                                    {:name (:skills/name skill)
+                                     :category (:skills/category skill)
+                                     :size-bytes (or (:skills/size_bytes skill) 0)
+                                     :token-count (or (:skills/token_count skill) 0)})
+                                  (:skills results))}
+           :prompts {:count (count (:prompts results))
+                     :results (map (fn [prompt]
+                                     {:name (:prompts/name prompt)
+                                      :size-bytes (or (:prompts/size_bytes prompt) 0)
+                                      :token-count (or (:prompts/token_count prompt) 0)})
+                                   (:prompts results))}}))))))
 
 (defn cmd-search-skills
   "Search skills."
@@ -179,19 +180,19 @@
      (fn []
        (let [[_config db] (load-config-and-db)
              skills (search/search-skills db query
-                                            :max-results (or max-results 50)
-                                            :category category)]
-           (output/output-data
-            {:type :skill-search-results
-             :query query
-             :category category
-             :count (count skills)
-             :skills (map (fn [skill]
-                            {:name (:skills/name skill)
-                             :category (:skills/category skill)
-                             :size-bytes (or (:skills/size_bytes skill) 0)
-                             :token-count (or (:skills/token_count skill) 0)})
-                          skills)}))))))
+                                          :max-results (or max-results 50)
+                                          :category category)]
+         (output/output-data
+          {:type :skill-search-results
+           :query query
+           :category category
+           :count (count skills)
+           :skills (map (fn [skill]
+                          {:name (:skills/name skill)
+                           :category (:skills/category skill)
+                           :size-bytes (or (:skills/size_bytes skill) 0)
+                           :token-count (or (:skills/token_count skill) 0)})
+                        skills)}))))))
 
 (defn cmd-search-prompts
   "Search prompts."
@@ -203,16 +204,16 @@
      (fn []
        (let [[_config db] (load-config-and-db)
              prompts (search/search-prompts db query
-                                              :max-results (or max-results 50))]
-           (output/output-data
-            {:type :prompt-search-results
-             :query query
-             :count (count prompts)
-             :prompts (map (fn [prompt]
-                             {:name (:prompts/name prompt)
-                              :size-bytes (or (:prompts/size_bytes prompt) 0)
-                              :token-count (or (:prompts/token_count prompt) 0)})
-                           prompts)}))))))
+                                            :max-results (or max-results 50))]
+         (output/output-data
+          {:type :prompt-search-results
+           :query query
+           :count (count prompts)
+           :prompts (map (fn [prompt]
+                           {:name (:prompts/name prompt)
+                            :size-bytes (or (:prompts/size_bytes prompt) 0)
+                            :token-count (or (:prompts/token_count prompt) 0)})
+                         prompts)}))))))
 
 (defn cmd-list-skills
   "List all skills."
@@ -372,6 +373,22 @@
              (print-error (str "Prompt not found: " prompt-name))
              (*exit-fn* 1))))))))
 
+(defn cmd-render-prompt
+  "Render prompt content as plain markdown."
+  [{:keys [_arguments]}]
+  (let [prompt-name (first _arguments)]
+    (validate-non-blank prompt-name "Prompt name cannot be empty")
+    (handle-command-errors
+     "Render prompt"
+     (fn []
+       (let [[_config db] (load-config-and-db)
+             prompt (search/get-prompt-by-name db prompt-name)]
+         (if prompt
+           (let [full-content (pr/render-prompt-as-plain-markdown db prompt)]
+             (println full-content))
+           (do
+             (print-error (str "Prompt not found: " prompt-name))
+             (*exit-fn* 1))))))))
 
 (defn cmd-stats
   "Show database statistics and configuration."
@@ -1223,7 +1240,15 @@
                :as "Prompt name"
                :type :string
                :required true}]
-       :runs cmd-show-prompt}]}
+       :runs cmd-show-prompt}
+
+      {:command "render"
+       :description "Render prompt content as plain markdown"
+       :args [{:arg "name"
+               :as "Prompt name"
+               :type :string
+               :required true}]
+       :runs cmd-render-prompt}]}
 
     {:command "plan"
      :description "Implementation plan management"
