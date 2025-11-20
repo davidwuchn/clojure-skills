@@ -5,6 +5,7 @@ description: |
   Use when writing functions, organizing function bodies, or handling multiple arities.
   Use when the user mentions function formatting, defn style, arity formatting, or
   function argument layout.
+source: https://github.com/bbatsov/clojure-style-guide
 ---
 
 # Function Formatting

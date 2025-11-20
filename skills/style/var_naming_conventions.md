@@ -1,3 +1,13 @@
+---
+name: clojure_var_naming_conventions
+description: |
+  Naming conventions for Clojure vars, functions, predicates, and constants. Use when
+  naming functions, defining vars, creating predicates, or working with dynamic vars.
+  Use when the user mentions var naming, function names, kebab-case, predicate conventions,
+  or dynamic var patterns.
+source: https://github.com/bbatsov/clojure-style-guide
+---
+
 # Var Naming Conventions
 
 Clojure uses distinctive naming patterns for different types of vars that communicate their purpose and behavior. These conventions help developers quickly understand code semantics.

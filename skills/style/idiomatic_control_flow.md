@@ -1,3 +1,13 @@
+---
+name: clojure_idiomatic_control_flow
+description: |
+  Idiomatic control flow patterns in Clojure using expressions over statements. Use when
+  writing conditional logic, choosing between if/when/cond, or replacing imperative loops.
+  Use when the user mentions control flow, conditionals, cond expressions, when vs if,
+  or expression-oriented programming.
+source: https://github.com/bbatsov/clojure-style-guide
+---
+
 # Idiomatic Control Flow
 
 Clojure emphasizes expression-oriented programming where most constructs return values. Idiomatic Clojure favors declarative control flow over imperative statements.

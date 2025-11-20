@@ -5,6 +5,7 @@ description: |
   organizing source files, separating code sections, or managing vertical spacing.
   Use when the user mentions whitespace, blank lines, file organization, or
   spacing conventions.
+source: https://github.com/bbatsov/clojure-style-guide
 ---
 
 # Whitespace Conventions

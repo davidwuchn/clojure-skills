@@ -1,8 +1,15 @@
+---
+name: clojure_data_structure_idioms
+description: |
+  Idiomatic patterns for working with Clojure data structures. Use when working with
+  maps, vectors, sets, destructuring, or collection operations. Use when the user mentions
+  data structures, destructuring, assoc, update, conj, into, or immutable collections.
+source: https://github.com/bbatsov/clojure-style-guide
+---
+
 # Data Structure Idioms
 
-Clojure provides rich, immutable data structures that encourage
-certain usage patterns. Idiomatic code leverages these structures'
-strengths.
+Clojure provides rich, immutable data structures that encourage certain usage patterns. Idiomatic code leverages these structures' strengths.
 
 ## Prefer Built-in Data Structures
 

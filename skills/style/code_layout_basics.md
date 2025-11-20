@@ -5,6 +5,7 @@ description: |
   organizing source files, or understanding community conventions for code presentation.
   Use when the user mentions code layout, indentation principles, line length, or
   visual code structure.
+source: https://github.com/bbatsov/clojure-style-guide
 ---
 
 # Code Layout Basics

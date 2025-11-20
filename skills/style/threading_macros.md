@@ -1,3 +1,13 @@
+---
+name: clojure_threading_macros
+description: |
+  Threading macro conventions for data transformation pipelines. Use when writing
+  transformation chains, eliminating nested calls, or building data pipelines.
+  Use when the user mentions threading macros, ->, ->>, some->, cond->, thread-first,
+  thread-last, or data transformation pipelines.
+source: https://github.com/bbatsov/clojure-style-guide
+---
+
 # Threading Macro Conventions
 
 Threading macros (`->`, `->>`, `some->`, `cond->`) improve readability by eliminating nested function calls. They create linear data transformation pipelines.

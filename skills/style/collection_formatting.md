@@ -5,6 +5,7 @@ description: |
   Use when writing collection literals, formatting data structures, or organizing
   complex nested collections. Use when the user mentions collection formatting,
   map layout, vector formatting, or literal syntax.
+source: https://github.com/bbatsov/clojure-style-guide
 ---
 
 # Collection Formatting

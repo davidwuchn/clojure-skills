@@ -1,3 +1,13 @@
+---
+name: clojure_type_naming_conventions
+description: |
+  Naming conventions for Clojure types, protocols, records, and Java interop. Use when
+  defining protocols, creating records, working with deftypes, or calling Java code.
+  Use when the user mentions type naming, PascalCase, protocol conventions, record naming,
+  or Java interop style.
+source: https://github.com/bbatsov/clojure-style-guide
+---
+
 # Type Naming Conventions
 
 Clojure uses PascalCase (CamelCase with initial capital) for types, protocols, and records. This convention distinguishes type definitions from regular functions and vars.

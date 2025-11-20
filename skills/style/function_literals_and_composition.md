@@ -1,3 +1,13 @@
+---
+name: clojure_function_literals_and_composition
+description: |
+  Function literal syntax and composition patterns using comp and partial. Use when
+  writing anonymous functions, composing functions, or creating higher-order abstractions.
+  Use when the user mentions function literals, #(), fn, comp, partial, function composition,
+  or anonymous functions.
+source: https://github.com/bbatsov/clojure-style-guide
+---
+
 # Function Literals and Composition
 
 Clojure provides concise syntax for creating anonymous functions and composing them. Idiomatic code uses the right level of abstraction for each situation.

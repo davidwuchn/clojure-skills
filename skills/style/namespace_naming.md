@@ -5,6 +5,7 @@ description: |
   creating new namespaces, organizing project structure, or naming libraries.
   Use when the user mentions namespace naming, ns conventions, project organization,
   or multi-segment namespace design.
+source: https://github.com/bbatsov/clojure-style-guide
 ---
 
 # Namespace Naming

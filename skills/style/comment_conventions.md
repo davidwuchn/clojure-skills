@@ -1,3 +1,12 @@
+---
+name: clojure_comment_conventions
+description: |
+  Comment conventions using semicolons and annotation keywords. Use when writing comments,
+  documenting code, or organizing file sections. Use when the user mentions comments,
+  semicolons, TODO, FIXME, comment levels, or code documentation.
+source: https://github.com/bbatsov/clojure-style-guide
+---
+
 # Comment Conventions
 
 Clojure uses different comment prefixes to indicate scope and purpose. These conventions help readers understand comment context quickly.

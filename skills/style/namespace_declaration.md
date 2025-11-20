@@ -5,6 +5,7 @@ description: |
   writing namespace declarations, organizing dependencies, or refactoring ns forms.
   Use when the user mentions ns form, require, import, namespace organization, or
   dependency declaration.
+source: https://github.com/bbatsov/clojure-style-guide
 ---
 
 # Namespace Declaration
