@@ -4,36 +4,11 @@
    [clojure.test :refer [deftest testing is use-fixtures]]
    [clojure-skills.cli :as cli]
    [clojure-skills.config :as config]
-   [clojure-skills.db.migrate :as migrate]
+   [clojure-skills.test-utils :as tu]
    [next.jdbc :as jdbc]))
 
 ;; Test database and fixture
-(def test-db-path (str "test-cli-subcommands-" (random-uuid) ".db"))
-(def ^:dynamic *test-db* nil)
-
-(defn with-test-db
-  "Fixture to create and migrate a test database."
-  [f]
-  (let [db-spec {:dbtype "sqlite" :dbname test-db-path}
-        ds (jdbc/get-datasource db-spec)]
-    ;; Clean up any existing test db
-    (try
-      (.delete (java.io.File. test-db-path))
-      (catch Exception _))
-
-    ;; Run migrations
-    (migrate/migrate-db db-spec)
-
-    ;; Run tests with datasource
-    (binding [*test-db* ds]
-      (f))
-
-    ;; Clean up
-    (try
-      (.delete (java.io.File. test-db-path))
-      (catch Exception _))))
-
-(use-fixtures :each with-test-db)
+(use-fixtures :each tu/use-sqlite-database)
 
 ;; Helper functions
 (defn mock-exit
@@ -44,10 +19,10 @@
 (defn mock-load-config-and-db
   "Mock load-config-and-db with proper config structure."
   []
-  [{:database {:path test-db-path}
+  [{:database {:path ":memory:"}
     :skills-dir "skills"
     :prompts-dir "prompts"}
-   *test-db*])
+   tu/*connection*])
 
 (defn capture-output
   "Capture stdout output from a function."
@@ -89,13 +64,15 @@
     (binding [cli/*exit-fn* mock-exit]
       (with-redefs [cli/load-config-and-db mock-load-config-and-db]
         ;; Add test data first to avoid empty database issue
-        (jdbc/execute! *test-db*
+        (jdbc/execute! tu/*connection*
                        ["INSERT INTO skills (name, category, path, content, file_hash, size_bytes, token_count) 
                        VALUES (?, ?, ?, ?, ?, ?, ?)"
                         "test-skill" "testing" "test.md" "content" "hash" 100 25])
-        (let [{:keys [output]} (capture-output #(cli/cmd-stats {}))]
-          (is (re-find #"Database Statistics" output))
-          (is (re-find #"Skills" output)))))))
+        (let [{:keys [output]} (capture-output #(cli/cmd-stats {}))
+              parsed (tu/parse-json-output output)]
+          (is (= "stats" (:type parsed)))
+          (is (map? (:database parsed)))
+          (is (= 1 (get-in parsed [:database :skills]))))))))
 
 ;; Integration test for db subcommand workflow
 (deftest db-subcommand-workflow-test
@@ -112,8 +89,10 @@
           (is (re-find #"Sync complete" output)))
 
         ;; 3. db stats (after sync, should have data)
-        (let [{:keys [output]} (capture-output #(cli/cmd-stats {}))]
-          (is (re-find #"Database Statistics" output)))
+        (let [{:keys [output]} (capture-output #(cli/cmd-stats {}))
+              parsed (tu/parse-json-output output)]
+          (is (= "stats" (:type parsed)))
+          (is (map? (:database parsed))))
 
         ;; 4. db reset --force
         (let [{:keys [output]} (capture-output #(cli/cmd-reset-db {:force true}))]
@@ -125,7 +104,7 @@
     (binding [cli/*exit-fn* mock-exit]
       (with-redefs [cli/load-config-and-db mock-load-config-and-db]
         ;; Add test data
-        (jdbc/execute! *test-db*
+        (jdbc/execute! tu/*connection*
                        ["INSERT INTO skills (name, category, path, content, file_hash, size_bytes, token_count) 
                        VALUES (?, ?, ?, ?, ?, ?, ?)"
                         "test-skill" "testing" "test.md" "test content for searching" "hash" 100 25])
@@ -139,7 +118,7 @@
     (binding [cli/*exit-fn* mock-exit]
       (with-redefs [cli/load-config-and-db mock-load-config-and-db]
         ;; Add test data
-        (jdbc/execute! *test-db*
+        (jdbc/execute! tu/*connection*
                        ["INSERT INTO skills (name, category, path, content, file_hash, size_bytes, token_count) 
                        VALUES (?, ?, ?, ?, ?, ?, ?)"
                         "test-skill" "testing" "test.md" "content" "hash" 100 25])
@@ -153,7 +132,7 @@
     (binding [cli/*exit-fn* mock-exit]
       (with-redefs [cli/load-config-and-db mock-load-config-and-db]
         ;; Add test data
-        (jdbc/execute! *test-db*
+        (jdbc/execute! tu/*connection*
                        ["INSERT INTO skills (name, category, path, content, file_hash, size_bytes, token_count) 
                        VALUES (?, ?, ?, ?, ?, ?, ?)"
                         "test-skill" "testing" "test.md" "test content" "hash" 100 25])
@@ -169,7 +148,7 @@
     (binding [cli/*exit-fn* mock-exit]
       (with-redefs [cli/load-config-and-db mock-load-config-and-db]
         ;; Add test data
-        (jdbc/execute! *test-db*
+        (jdbc/execute! tu/*connection*
                        ["INSERT INTO prompts (name, path, content, file_hash, size_bytes, token_count) 
                         VALUES (?, ?, ?, ?, ?, ?)"
                         "test-prompt" "test-prompt.md" "test prompt content" "hash" 100 25])
@@ -183,7 +162,7 @@
     (binding [cli/*exit-fn* mock-exit]
       (with-redefs [cli/load-config-and-db mock-load-config-and-db]
         ;; Add test data
-        (jdbc/execute! *test-db*
+        (jdbc/execute! tu/*connection*
                        ["INSERT INTO prompts (name, path, content, file_hash, size_bytes, token_count) 
                         VALUES (?, ?, ?, ?, ?, ?)"
                         "list-test-prompt" "list-test.md" "content" "hash" 200 50])
@@ -196,7 +175,7 @@
     (binding [cli/*exit-fn* mock-exit]
       (with-redefs [cli/load-config-and-db mock-load-config-and-db]
         ;; Add test prompt data
-        (jdbc/execute! *test-db*
+        (jdbc/execute! tu/*connection*
                        ["INSERT INTO prompts (name, title, author, path, content, file_hash, size_bytes, token_count) 
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
                         "show-test-prompt" "Test Prompt Title" "Test Author"
@@ -204,28 +183,33 @@
                         "hash123" 500 125])
         ;; Simulate CLI call: clojure-skills prompt show show-test-prompt
         (let [{:keys [output]} (capture-output
-                                #(cli/cmd-show-prompt {:_arguments ["show-test-prompt"]}))]
-          (is (re-find #"show-test-prompt" output))
-          (is (re-find #"Test Prompt Title" output))
-          (is (re-find #"Test Author" output))
-          (is (re-find #"500 bytes" output))
-          (is (re-find #"125 tokens" output))
-          (is (re-find #"Test Prompt Content" output))))))
+                                #(cli/cmd-show-prompt {:_arguments ["show-test-prompt"]}))
+              parsed (tu/parse-json-output output)]
+          (is (= "prompt" (:type parsed)))
+          (is (= "show-test-prompt" (get-in parsed [:data :name])))
+          (is (= "Test Prompt Title" (get-in parsed [:data :title])))
+          (is (= "Test Author" (get-in parsed [:data :author])))
+          (is (= 500 (get-in parsed [:data :size-bytes])))
+          (is (= 125 (get-in parsed [:data :token-count])))
+          (is (re-find #"Test Prompt Content" (get-in parsed [:data :content])))))))
 
   (testing "prompt show handles prompts without associated skills"
     (binding [cli/*exit-fn* mock-exit]
       (with-redefs [cli/load-config-and-db mock-load-config-and-db]
         ;; Add prompt without skills
-        (jdbc/execute! *test-db*
+        (jdbc/execute! tu/*connection*
                        ["INSERT INTO prompts (name, path, content, file_hash, size_bytes, token_count) 
                         VALUES (?, ?, ?, ?, ?, ?)"
                         "no-skills-prompt" "no-skills.md" "content" "hash" 100 25])
         ;; Simulate CLI call - should work without error even with no skills
         (let [{:keys [output]} (capture-output
-                                #(cli/cmd-show-prompt {:_arguments ["no-skills-prompt"]}))]
-          (is (re-find #"no-skills-prompt" output))
-          ;; Should NOT have Associated Skills section if there are none
-          (is (not (re-find #"Associated Skills:" output)))))))
+                                #(cli/cmd-show-prompt {:_arguments ["no-skills-prompt"]}))
+              parsed (tu/parse-json-output output)]
+          (is (= "prompt" (:type parsed)))
+          (is (= "no-skills-prompt" (get-in parsed [:data :name])))
+          ;; Should have empty fragments and references
+          (is (empty? (get-in parsed [:data :embedded-fragments])))
+          (is (empty? (get-in parsed [:data :references])))))))
 
   (testing "prompt show with non-existent prompt fails"
     (binding [cli/*exit-fn* mock-exit]

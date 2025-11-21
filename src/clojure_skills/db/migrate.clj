@@ -10,11 +10,11 @@
   "Load Ragtime configuration from application config."
   []
   (let [app-config (config/load-config)
-        db-path (config/get-db-path app-config)
-        db-spec {:dbtype "sqlite" :dbname db-path}]
-    {:datastore (ragtime-jdbc/sql-database db-spec)
+        db-path    (config/get-db-path app-config)
+        db-spec    {:dbtype "sqlite" :dbname db-path}]
+    {:datastore  (ragtime-jdbc/sql-database db-spec)
      :migrations (ragtime-jdbc/load-resources "migrations")
-     :strategy ragtime.strategy/apply-new}))
+     :strategy   ragtime.strategy/apply-new}))
 
 (defn migrate
   "Run all pending migrations."
@@ -28,11 +28,11 @@
   "Rollback the last migration."
   ([]
    (rollback 1))
-   ([amount]
-    (let [config (load-config)]
-      (println (format "Rolling back %d migration(s)..." amount))
-      (ragtime-repl/rollback config amount)
-      (println "Rollback complete."))))
+  ([amount]
+   (let [config (load-config)]
+     (println (format "Rolling back %d migration(s)..." amount))
+     (ragtime-repl/rollback config amount)
+     (println "Rollback complete."))))
 
 (defn rollback-all
   "Rollback all migrations."

@@ -1,8 +1,47 @@
 (ns clojure-skills.test-utils
   "Shared test utilities for database testing."
-  (:require [clojure.java.io :as io]
+  (:require [clojure.data.json :as json]
+            [clojure.java.io :as io]
             [next.jdbc :as jdbc]
-            [clojure-skills.db.migrate :as migrate]))
+            [ragtime.next-jdbc :as ragtime-jdbc]
+            [ragtime.repl :as ragtime-repl]
+            [ragtime.strategy]
+            [ragtime.reporter]
+            [clojure-skills.db.migrate :as migrate])
+  (:import (org.sqlite.core DB)
+           (org.sqlite SQLiteConnection)))
+
+(def ^:dynamic *db* nil)
+(def ^:dynamic *connection* nil)
+
+(defn- memory-sqlite-database
+  []
+  (next.jdbc/get-connection {:connection-uri "jdbc:sqlite::memory:"}))
+
+(defn- migration-config
+  [^SQLiteConnection connection]
+  {:datastore  (ragtime-jdbc/sql-database connection)
+   :migrations (ragtime-jdbc/load-resources "migrations")
+   :reporter   ragtime.reporter/silent
+   :strategy   ragtime.strategy/apply-new})
+
+(defn use-sqlite-database
+  [fn]
+  (let [conn     (memory-sqlite-database)
+        database (.getDatabase ^SQLiteConnection conn)
+        _        (.enable_load_extension ^DB database true)
+        ;; Enable foreign keys for CASCADE delete support
+        _        (jdbc/execute! conn ["PRAGMA foreign_keys = ON"])
+        config   (migration-config conn)]
+    (try
+      (binding [*connection* conn
+                *db*         database]
+        (ragtime-repl/migrate config)
+        (fn))
+      (finally
+        (doseq [_ @ragtime-repl/migration-index]
+          (ragtime-repl/rollback config))
+        (.close database)))))
 
 ;; Dynamic vars for test database - to be used in test namespaces
 (def ^:dynamic *test-db* nil)
@@ -68,3 +107,9 @@
         (f))
       ;; The transaction will be automatically rolled back when exiting the scope
       )))
+
+(defn parse-json-output
+  "Parse JSON output from CLI command.
+   Returns parsed Clojure data structure with keyword keys."
+  [output]
+  (json/read-str output :key-fn keyword))

@@ -1,7 +1,6 @@
 (ns dev
   (:require
    [clj-kondo.core :as clj-kondo]
-   [clojure.string :as str]
    [clojure.tools.namespace.repl :as repl]
    [kaocha.repl :as k]))
 
@@ -12,7 +11,7 @@
   "Lint the entire project (src and test directories)."
   []
   (-> (clj-kondo/run! {:lint ["src" "test"]})
-      clj-kondo/print!))
+      (clj-kondo/print!)))
 
 (defn lint-summary
   "Lint the project and return summary statistics."
@@ -22,23 +21,15 @@
 
 (defn lint-file
   "Lint a specific file or directory.
-  
+
   Example: (lint-file \"src/clojure_skills/main.clj\")"
   [path]
   (-> (clj-kondo/run! {:lint [path]})
-      clj-kondo/print!))
+      (clj-kondo/print!)))
 
-(defn lint-ns
-  "Lint a specific namespace by converting namespace symbol to file path.
-  
-  Example: (lint-ns 'clojure-skills.main)"
-  [ns-sym]
-  (let [path (-> (str ns-sym)
-                 (str/replace "-" "_")
-                 (str/replace "." "/"))]
-    (-> (clj-kondo/run! {:lint [(str "src/" path ".clj")
-                                (str "test/" path "_test.clj")]})
-        clj-kondo/print!)))
+(defn run-all
+  []
+  (k/run-all))
 
 (comment
 
@@ -51,7 +42,6 @@
   (lint) ; Lint entire project
   (lint-summary) ; Get summary only
   (lint-file "src/clojure_skills/main.clj") ; Lint specific file
-  (lint-ns 'clojure-skills.main) ; Lint specific namespace
 
   ;; Reload code after changes
   (refresh))
