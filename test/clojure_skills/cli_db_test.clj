@@ -4,37 +4,12 @@
    [clojure.test :refer [deftest testing is use-fixtures]]
    [clojure-skills.cli :as cli]
    [clojure-skills.config :as config]
-   [clojure-skills.db.migrate :as migrate]
    [clojure-skills.test-utils :as tu]
+   [matcher-combinators.test]
    [next.jdbc :as jdbc]))
 
-;; Test database and fixture
-(def test-db-path (str "test-cli-db-" (random-uuid) ".db"))
-(def ^:dynamic *test-db* nil)
-
-(defn with-test-db
-  "Fixture to create and migrate a test database."
-  [f]
-  (let [db-spec {:dbtype "sqlite" :dbname test-db-path}
-        ds (jdbc/get-datasource db-spec)]
-    ;; Clean up any existing test db
-    (try
-      (.delete (java.io.File. test-db-path))
-      (catch Exception _))
-
-    ;; Run migrations
-    (migrate/migrate-db db-spec)
-
-    ;; Run tests with datasource
-    (binding [*test-db* ds]
-      (f))
-
-    ;; Clean up
-    (try
-      (.delete (java.io.File. test-db-path))
-      (catch Exception _))))
-
-(use-fixtures :each with-test-db)
+;; Use the shared test fixture
+(use-fixtures :each tu/use-sqlite-database)
 
 ;; Helper functions for testing CLI commands
 (defn capture-output
@@ -54,26 +29,38 @@
 (defn mock-load-config-and-db
   "Mock load-config-and-db with proper config structure."
   []
-  [{:database {:path test-db-path}
+  [{:database {:path "jdbc:sqlite::memory:"}
     :skills-dir "skills"
     :prompts-dir "prompts"}
-   *test-db*])
+   tu/*connection*])
+
+(deftest test-example
+  (testing "Given: A databsae with tables"
+    (testing "When: We request all of the table"
+      (let [tables (jdbc/execute! tu/*connection*
+                                  ["SELECT name FROM sqlite_master WHERE type='table'"])
+            table-names (set (map :sqlite_master/name tables))]
+        (testing "Then: the set should contains the tables we care about"
+          (is (not (contains? table-names "skills")) "Skills table exists")
+          (is (contains? table-names "prompts") "Prompts table exists"))))))
 
 ;; Tests for db init command
 (deftest db-init-command-test
-  (testing "db init initializes database"
+  (testing "Given: A fresh database"
     (binding [cli/*exit-fn* mock-exit]
       (with-redefs [cli/load-config-and-db mock-load-config-and-db
                     config/init-config (fn [] nil)]
-        (let [{:keys [output]} (capture-output #(cli/cmd-init {}))]
-          (is (re-find #"Database initialized successfully" output))
+        (testing "When: We initialize the database"
+          (let [{:keys [output]} (capture-output #(cli/cmd-init {}))]
+            (testing "Then: Success message is displayed"
+              (is (re-find #"Database initialized successfully" output)))
 
-          ;; Verify migrations were applied - check table names
-          (let [tables (jdbc/execute! *test-db*
-                                      ["SELECT name FROM sqlite_master WHERE type='table'"])
-                table-names (set (map :sqlite_master/name tables))]
-            (is (contains? table-names "skills"))
-            (is (contains? table-names "prompts"))))))))
+            (testing "Then: Required tables are created"
+              (let [tables (jdbc/execute! tu/*connection*
+                                          ["SELECT name FROM sqlite_master WHERE type='table'"])
+                    table-names (set (map :sqlite_master/name tables))]
+                (is (contains? table-names "skills"))
+                (is (contains? table-names "prompts"))))))))))
 
 (deftest db-init-idempotent-test
   (testing "db init is idempotent - can run multiple times"
@@ -102,60 +89,61 @@
                             (cli/cmd-reset-db {:force false}))))))
 
 (deftest db-reset-with-force-test
-  (testing "db reset with --force resets database"
+  (testing "Given: A database with existing data"
     (binding [cli/*exit-fn* mock-exit]
       (with-redefs [cli/load-config-and-db mock-load-config-and-db]
-        ;; First populate with some data (including all required fields)
-        (jdbc/execute! *test-db*
-                       ["INSERT INTO skills (name, category, path, content, file_hash, size_bytes, token_count) 
-                      VALUES (?, ?, ?, ?, ?, ?, ?)"
-                        "test-skill" "test-category" "test/path.md" "test content" "abc123hash" 100 25])
+        ;; Given: Populate with some data
+        (jdbc/execute! tu/*connection*
+                       ["INSERT INTO skills (name, category, path, content, size_bytes, token_count, file_hash)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)"
+                        "test-skill" "test-category" "test/path.md" "test content" 100 25 "abc123hash"])
 
-        ;; Verify data exists
-        (let [before (jdbc/execute-one! *test-db*
-                                        ["SELECT COUNT(*) as count FROM skills"])]
-          (is (= 1 (:count before))))
+        (testing "When: We reset the database with --force flag"
+          (let [before (jdbc/execute-one! tu/*connection*
+                                          ["SELECT COUNT(*) as count FROM skills"])
+                {:keys [output]} (capture-output #(cli/cmd-reset-db {:force true}))
+                after (jdbc/execute-one! tu/*connection*
+                                         ["SELECT COUNT(*) as count FROM skills"])]
 
-        ;; Reset database
-        (let [{:keys [output]} (capture-output #(cli/cmd-reset-db {:force true}))]
-          (is (re-find #"Database reset complete" output)))
-
-        ;; Verify data is gone (tables recreated empty)
-        (let [after (jdbc/execute-one! *test-db*
-                                       ["SELECT COUNT(*) as count FROM skills"])]
-          (is (= 0 (:count after))))))))
+            (testing "Then: Data is deleted and success message shown"
+              (is (= 1 (:count before)) "Data exists before reset")
+              (is (re-find #"Database reset complete" output) "Success message displayed")
+              (is (= 0 (:count after)) "Data is gone after reset"))))))))
 
 ;; Tests for db stats command
 (deftest db-stats-command-test
-  (testing "db stats shows database statistics"
+  (testing "Given: A database with one skill"
     (binding [cli/*exit-fn* mock-exit]
       (with-redefs [cli/load-config-and-db mock-load-config-and-db]
-        ;; Add some test data (now including file_hash)
-        (jdbc/execute! *test-db*
-                       ["INSERT INTO skills (name, category, path, content, size_bytes, token_count, file_hash) 
-                      VALUES (?, ?, ?, ?, ?, ?, ?)"
+        ;; Given: Add some test data
+        (jdbc/execute! tu/*connection*
+                       ["INSERT INTO skills (name, category, path, content, size_bytes, token_count, file_hash)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)"
                         "test-skill" "test-category" "test/path.md" "test content" 100 50 "hash123"])
 
-        (let [{:keys [output]} (capture-output #(cli/cmd-stats {}))
-              parsed (tu/parse-json-output output)]
-          (is (= "stats" (:type parsed)))
-          (is (map? (:database parsed)))
-          (is (= 1 (get-in parsed [:database :skills]))))))))
-
-(deftest db-stats-empty-database-test
-  (testing "db stats works with empty database"
-    (binding [cli/*exit-fn* mock-exit]
-      (with-redefs [cli/load-config-and-db mock-load-config-and-db]
-        ;; Wrap in try-catch to handle any unexpected exit calls
-        (try
+        (testing "When: We request database statistics"
           (let [{:keys [output]} (capture-output #(cli/cmd-stats {}))
                 parsed (tu/parse-json-output output)]
-            (is (= "stats" (:type parsed)))
-            (is (map? (:database parsed)))
-            (is (= 0 (get-in parsed [:database :skills]))))
-          (catch clojure.lang.ExceptionInfo e
-            ;; If exit was called unexpectedly, fail the test with details
-            (is false (str "Unexpected exit: " (pr-str (ex-data e))))))))))
+            (testing "Then: Response should show correct stats structure and count"
+              (is (match? {:type "stats"
+                           :database {:skills 1}}
+                          parsed)))))))))
+
+(deftest db-stats-empty-database-test
+  (testing "Given: An empty database"
+    (binding [cli/*exit-fn* mock-exit]
+      (with-redefs [cli/load-config-and-db mock-load-config-and-db]
+        (testing "When: We request database statistics"
+          (try
+            (let [{:keys [output]} (capture-output #(cli/cmd-stats {}))
+                  parsed (tu/parse-json-output output)]
+              (testing "Then: Response should show zero counts"
+                (is (match? {:type "stats"
+                             :database {:skills 0}}
+                            parsed))))
+            (catch clojure.lang.ExceptionInfo e
+              ;; If exit was called unexpectedly, fail the test with details
+              (is false (str "Unexpected exit: " (pr-str (ex-data e)))))))))))
 
 ;; Integration test: full workflow
 (deftest db-workflow-integration-test
@@ -182,6 +170,6 @@
           (is (re-find #"Database reset complete" output)))
 
         ;; 5. Verify reset worked
-        (let [count (jdbc/execute-one! *test-db*
+        (let [count (jdbc/execute-one! tu/*connection*
                                        ["SELECT COUNT(*) as count FROM skills"])]
           (is (= 0 (:count count))))))))

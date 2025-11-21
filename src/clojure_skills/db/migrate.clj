@@ -10,11 +10,11 @@
   "Load Ragtime configuration from application config."
   []
   (let [app-config (config/load-config)
-        db-path (config/get-db-path app-config)
-        db-spec {:dbtype "sqlite" :dbname db-path}]
-    {:datastore (ragtime-jdbc/sql-database db-spec)
+        db-path    (config/get-db-path app-config)
+        db-spec    {:dbtype "sqlite" :dbname db-path}]
+    {:datastore  (ragtime-jdbc/sql-database db-spec)
      :migrations (ragtime-jdbc/load-resources "migrations")
-     :strategy ragtime.strategy/apply-new}))
+     :strategy   ragtime.strategy/apply-new}))
 
 (defn migrate
   "Run all pending migrations."
