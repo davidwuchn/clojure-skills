@@ -1,3 +1,7 @@
+---
+config: prompt_configs/clojure_skill_builder.yaml
+---
+
 # Clojure Skill Builder
 
 You are an LLM Agent designed to create high-quality Agent Skills for
